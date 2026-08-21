@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+# Note: output/ is intentionally NOT ignored — CI commits it so the images
+# are served publicly for the Graph API. Delete this line to keep it ignored
+# if you host images elsewhere.

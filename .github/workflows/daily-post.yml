@@ -1,0 +1,61 @@
+name: Daily market post
+
+on:
+  schedule:
+    # 11:00 UTC = 4:30 PM IST, ~1 hour after the Indian market close (3:30 PM IST).
+    # Runs Mon–Fri. Note: this does not skip Indian market holidays — on those
+    # days it will still post the last available close. Add a holiday check if needed.
+    - cron: "0 11 * * 1-5"
+  workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
+
+permissions:
+  contents: write   # needed to commit the generated images back to the repo
+
+concurrency:
+  group: daily-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system fonts
+        run: sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate slides + caption
+        run: python main.py generate
+
+      - name: Commit generated images
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/
+          git commit -m "Daily post $(date -u +%Y-%m-%d)" || echo "nothing to commit"
+          git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to Instagram
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          GRAPH_API_VERSION: ${{ secrets.GRAPH_API_VERSION }}
+          # raw.githubusercontent.com serves committed files at an immutable
+          # commit SHA immediately. NOTE: the repo must be PUBLIC for Meta to
+          # fetch these unauthenticated. If your repo is private, host images on
+          # your own site and set PUBLIC_IMAGE_BASE_URL to that instead.
+          PUBLIC_IMAGE_BASE_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.commit.outputs.sha }}/output
+        run: python main.py publish
