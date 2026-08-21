@@ -1,0 +1,38 @@
+name: Refresh Instagram token
+
+# Renews the long-lived Instagram token well before its ~60-day expiry and
+# writes the new value back into the IG_ACCESS_TOKEN repo secret.
+#
+# Requires a repo secret GH_PAT: a fine-grained Personal Access Token with
+# "Secrets: Read and write" permission on THIS repository. The default Actions
+# token cannot update secrets, which is why a PAT is needed.
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"   # every Monday 03:00 UTC — frequent enough to never expire
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests python-dotenv
+
+      - name: Refresh the token
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: python refresh_token.py
+
+      - name: Store the new token as a secret
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          # Read the new token from the file (never echoed) and save it back.
+          gh secret set IG_ACCESS_TOKEN --repo "${{ github.repository }}" < new_token.txt
+          echo "IG_ACCESS_TOKEN secret updated."

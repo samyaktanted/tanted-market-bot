@@ -20,15 +20,16 @@ VER = config.GRAPH_API_VERSION     # v21.0
 
 def main():
     print("Paste the values when prompted (input is hidden).\n")
-    short_token = getpass("Short-lived token: ").strip()
-    app_secret = getpass("App secret (App settings -> Basic): ").strip()
-    if not short_token or not app_secret:
-        sys.exit("Both values are required.")
+    token = getpass("Access token (from the dashboard): ").strip()
+    # App secret is only needed IF the token is short-lived and must be exchanged.
+    app_secret = getpass("App secret (optional - press Enter to skip): ").strip()
+    if not token:
+        sys.exit("An access token is required.")
 
-    # 1) who am I -> user_id
+    # 1) who am I -> user_id (also validates the token)
     me = requests.get(
         f"https://{HOST}/{VER}/me",
-        params={"fields": "user_id,username", "access_token": short_token},
+        params={"fields": "user_id,username", "access_token": token},
         timeout=30,
     ).json()
     if "error" in me:
@@ -37,21 +38,29 @@ def main():
     username = me.get("username", "?")
     print(f"Account: @{username}  (id: {user_id})")
 
-    # 2) exchange for a long-lived token (~60 days)
-    ll = requests.get(
-        f"https://{HOST}/access_token",
-        params={
-            "grant_type": "ig_exchange_token",
-            "client_secret": app_secret,
-            "access_token": short_token,
-        },
-        timeout=30,
-    ).json()
-    if "error" in ll or "access_token" not in ll:
-        sys.exit(f"Long-lived exchange failed: {ll}")
-    long_token = ll["access_token"]
-    expires_days = round(ll.get("expires_in", 0) / 86400)
-    print(f"Long-lived token obtained. Expires in ~{expires_days} days.")
+    # 2) Try to exchange for a long-lived token. In the Instagram-Login flow the
+    #    dashboard-generated token is ALREADY long-lived, so the exchange will
+    #    fail with 'invalid token' - that's fine, we just keep the token as-is.
+    long_token = token
+    if app_secret:
+        ll = requests.get(
+            f"https://{HOST}/access_token",
+            params={
+                "grant_type": "ig_exchange_token",
+                "client_secret": app_secret,
+                "access_token": token,
+            },
+            timeout=30,
+        ).json()
+        if "access_token" in ll:
+            long_token = ll["access_token"]
+            days = round(ll.get("expires_in", 0) / 86400)
+            print(f"Exchanged for a long-lived token (~{days} days).")
+        else:
+            print("Exchange not applicable - the dashboard token is already "
+                  "long-lived. Keeping it as-is.")
+    else:
+        print("Skipping exchange - keeping the dashboard token (already long-lived).")
 
     # 3) write .env (kept local; .gitignore already excludes it)
     lines = [
