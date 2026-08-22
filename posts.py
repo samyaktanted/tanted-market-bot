@@ -12,6 +12,7 @@ import content
 import library
 import market_data
 import news
+import premium
 import render
 
 HASHTAGS = " ".join(content.HASHTAGS)
@@ -132,6 +133,55 @@ def build_thisorthat() -> Tuple[List[Image.Image], str]:
     return slides, caption
 
 
+# --- Mutual funds 101 (premium template, educational) --------------------
+def build_mutualfunds() -> Tuple[List[Image.Image], str]:
+    total = 6
+    slides = [
+        premium.cover("MUTUAL FUNDS 101", ["Mutual funds,", "explained"],
+                      "The 2-minute beginner's guide", total),
+        premium.section("What is a mutual fund?", [
+            ("The idea",
+             "It pools money from many investors, and a professional manager "
+             "invests it in a basket of stocks, bonds or both."),
+            ("Why people use them",
+             "Instant diversification and professional management — even with a "
+             "small amount like a ₹500 monthly SIP."),
+        ], page=2, total=total),
+        premium.section("The main types", [
+            ("Equity funds", "Mostly stocks — higher growth, bigger swings."),
+            ("Debt funds", "Bonds / fixed income — steadier, lower risk."),
+            ("Hybrid funds", "A blend of equity + debt for balance."),
+            ("Index funds & ETFs", "Track an index like Nifty 50 at very low cost."),
+        ], page=3, total=total),
+        premium.section("Key terms to know", [
+            ("NAV", "Net Asset Value — the per-unit price of the fund."),
+            ("Expense ratio", "The fund's annual fee. Lower is better."),
+            ("AUM", "Assets Under Management — total money in the fund."),
+            ("Exit load", "A small fee if you redeem too early."),
+        ], page=4, total=total),
+        premium.section("How to start", [
+            ("1. Set your goal", "Know your time horizon and risk comfort first."),
+            ("2. Pick a fund type", "Match it to the goal — equity for long-term "
+             "growth, debt for stability."),
+            ("3. Start an SIP", "Automate a fixed monthly amount and stay consistent."),
+        ], page=5, total=total),
+        premium.outro(page=6, total=total),
+    ]
+    caption = (
+        "\U0001F4B0 Mutual Funds 101 — the 2-minute beginner's guide\n\n"
+        "A mutual fund pools money from many investors and a professional manager "
+        "invests it in a basket of stocks and/or bonds — giving you instant "
+        "diversification, even with a small SIP.\n\n"
+        "Types: \U0001F4C8 Equity (growth) • \U0001F3E6 Debt (stability) • "
+        "⚖️ Hybrid (both) • \U0001F4CA Index/ETF (low-cost)\n\n"
+        "Key terms: NAV, expense ratio, AUM, exit load.\n\n"
+        "Save this for later \U0001F516 and follow for a beginner-friendly money "
+        "tip every day."
+        + _footer_caption("#mutualfunds #sip #mutualfundssahihai #investing101")
+    )
+    return slides, caption
+
+
 POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "recap": build_recap,
     "global": build_global,
@@ -139,6 +189,7 @@ POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "quiz": build_quiz,
     "term": build_term,
     "thisorthat": build_thisorthat,
+    "mutualfunds": build_mutualfunds,
 }
 
 # Weekday rotation for the "extra" (non-recap) daily post. Mon=0 .. Sun=6.
