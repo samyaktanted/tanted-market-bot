@@ -2,6 +2,7 @@
 glow, a kicker chip, rounded content cards, and a footer with page numbers.
 
 Built on top of render.py's font helpers so it shares the brand fonts."""
+import os
 from typing import List, Optional, Tuple
 
 from PIL import Image, ImageDraw, ImageFilter
@@ -12,6 +13,26 @@ import render
 W, H, MARGIN = render.W, render.H, render.MARGIN
 font = render.font
 _wrap = render._wrap
+
+_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "assets", "logo.png")
+_logo_cache = {}
+
+
+def _logo_badge(size: int) -> Optional[Image.Image]:
+    """Return the brand logo as a rounded-square RGBA badge, or None if missing."""
+    if size in _logo_cache:
+        return _logo_cache[size]
+    if not os.path.exists(_LOGO_PATH):
+        _logo_cache[size] = None
+        return None
+    im = Image.open(_LOGO_PATH).convert("RGBA").resize((size, size), Image.LANCZOS)
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, size, size],
+                                           radius=int(size * 0.18), fill=255)
+    im.putalpha(mask)
+    _logo_cache[size] = im
+    return im
 
 # Palette derived from config, with a couple of template-only shades.
 GRAD_TOP = config.COLOR_BG          # navy
@@ -54,14 +75,19 @@ def canvas(page: int = 0, total: int = 0) -> Tuple[Image.Image, ImageDraw.ImageD
     # Top accent bar.
     draw.rectangle([0, 0, W, 12], fill=config.COLOR_ACCENT)
 
-    # Footer: divider + handle (left) + page number (right).
+    # Footer: divider + small logo + handle (left) + page number (right).
     fy = H - 96
     draw.line([(MARGIN, fy), (W - MARGIN, fy)], fill="#24466B", width=2)
-    draw.text((MARGIN, fy + 22), config.BRAND_HANDLE, font=font(30, True),
+    handle_x = MARGIN
+    badge = _logo_badge(52)
+    if badge is not None:
+        img.paste(badge, (MARGIN, fy + 18), badge)
+        handle_x = MARGIN + 68
+    draw.text((handle_x, fy + 28), config.BRAND_HANDLE, font=font(28, True),
               fill=config.COLOR_MUTED)
     if total:
         pg = f"{page}/{total}"
-        draw.text((W - MARGIN - draw.textlength(pg, font=font(30, True)), fy + 22),
+        draw.text((W - MARGIN - draw.textlength(pg, font=font(30, True)), fy + 28),
                   pg, font=font(30, True), fill=config.COLOR_MUTED)
     return img, draw
 
@@ -107,6 +133,10 @@ def card(draw: ImageDraw.ImageDraw, x: int, y: int, w: int, title: str, body: st
 def cover(kicker: str, title_lines: List[str], subtitle: str,
           total: int) -> Image.Image:
     img, draw = canvas(page=1, total=total)
+    # Hero logo badge, top-right.
+    hero = _logo_badge(150)
+    if hero is not None:
+        img.paste(hero, (W - MARGIN - 150, 150), hero)
     y = 220
     y = chip(draw, MARGIN, y, kicker) + 70
     for line in title_lines:

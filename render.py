@@ -11,9 +11,14 @@ from market_data import Quote, Snapshot
 W, H = 1080, 1350
 MARGIN = 90
 
+# Bundled Poppins (open-license) is preferred so slides look identical locally
+# and in CI. Falls back to system fonts if the bundled files are missing.
+_ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "fonts")
+
 # Candidate font files, in priority order. First hit wins.
 _REGULAR_CANDIDATES = [
     config.FONT_PATH,
+    os.path.join(_ASSETS, "Poppins-Regular.ttf"),
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/System/Library/Fonts/Supplemental/Arial.ttf",
     "/Library/Fonts/Arial.ttf",
@@ -21,6 +26,7 @@ _REGULAR_CANDIDATES = [
 ]
 _BOLD_CANDIDATES = [
     config.FONT_PATH,
+    os.path.join(_ASSETS, "Poppins-Bold.ttf"),
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
     "/Library/Fonts/Arial Bold.ttf",
