@@ -1,0 +1,62 @@
+name: Daily extra post
+
+# The rotating engagement/education post (global cues, quiz, jargon term,
+# this-or-that, news roundup) — one per day, chosen by weekday in posts.py.
+# Runs every day (evergreen content is fine on weekends too).
+
+on:
+  schedule:
+    - cron: "30 3 * * *"   # 09:00 IST, before market open
+  workflow_dispatch:
+    inputs:
+      type:
+        description: "Post type (recap|global|news|quiz|term|thisorthat|auto-extra)"
+        required: false
+        default: "auto-extra"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-extra
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    env:
+      POST_TYPE: ${{ github.event.inputs.type || 'auto-extra' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
+
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate slides + caption
+        run: python main.py generate --type "$POST_TYPE"
+
+      - name: Commit generated images
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/
+          git commit -m "Daily extra ($POST_TYPE) $(date -u +%Y-%m-%d)" || echo "nothing to commit"
+          git pull --rebase origin main || true
+          git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to Instagram
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          GRAPH_API_VERSION: ${{ secrets.GRAPH_API_VERSION }}
+          PUBLIC_IMAGE_BASE_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.commit.outputs.sha }}/output
+        run: python main.py publish --type "$POST_TYPE"

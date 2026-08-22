@@ -4,13 +4,36 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 import yfinance as yf
 
 IST = ZoneInfo("Asia/Kolkata")
+
+# Extra symbol groups used by the non-recap post types.
+GLOBAL_CUES = {
+    "DOW JONES": "^DJI",
+    "NASDAQ": "^IXIC",
+    "S&P 500": "^GSPC",
+    "NIKKEI 225": "^N225",
+    "HANG SENG": "^HSI",
+}
+COMMODITIES_FX = {
+    "GOLD ($/oz)": "GC=F",
+    "CRUDE (Brent)": "BZ=F",
+    "USD / INR": "INR=X",
+    "BITCOIN ($)": "BTC-USD",
+}
+SECTORS = {
+    "NIFTY IT": "^CNXIT",
+    "NIFTY BANK": "^NSEBANK",
+    "NIFTY AUTO": "^CNXAUTO",
+    "NIFTY PHARMA": "^CNXPHARMA",
+    "NIFTY FMCG": "^CNXFMCG",
+    "NIFTY METAL": "^CNXMETAL",
+}
 
 # Headline indices (Yahoo Finance symbols).
 INDICES = {
@@ -77,6 +100,26 @@ def _pct_change_from_history(df: pd.DataFrame) -> Optional[Quote]:
 
 def _clean_name(ticker: str) -> str:
     return ticker.replace(".NS", "").replace("&", "&")
+
+
+def get_quotes(mapping: Dict[str, str]) -> List[Quote]:
+    """Generic: fetch last close + % change for an arbitrary {name: symbol} map.
+    Symbols that fail (delisted / unavailable) are skipped, not fatal."""
+    out: List[Quote] = []
+    for name, sym in mapping.items():
+        try:
+            hist = yf.Ticker(sym).history(period="5d")
+            q = _pct_change_from_history(hist)
+            if q:
+                q.name = name
+                out.append(q)
+        except Exception as exc:
+            print(f"[warn] quote {name} ({sym}) failed: {exc}")
+    return out
+
+
+def today_ist() -> str:
+    return datetime.now(IST).strftime("%d %b %Y")
 
 
 def get_snapshot() -> Snapshot:

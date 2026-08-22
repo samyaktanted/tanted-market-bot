@@ -160,8 +160,7 @@ def _slide_outro() -> Image.Image:
     return img
 
 
-def render_carousel(snap: Snapshot, tip: Tuple[str, str], out_dir: str) -> List[str]:
-    os.makedirs(out_dir, exist_ok=True)
+def build_recap_slides(snap: Snapshot, tip: Tuple[str, str]) -> List[Image.Image]:
     slides = [_slide_cover(snap), _slide_indices(snap)]
     if snap.gainers:
         slides.append(_slide_movers("Top gainers", snap.gainers, up=True))
@@ -169,10 +168,104 @@ def render_carousel(snap: Snapshot, tip: Tuple[str, str], out_dir: str) -> List[
         slides.append(_slide_movers("Top losers", snap.losers, up=False))
     slides.append(_slide_tip(tip))
     slides.append(_slide_outro())
+    return slides
 
+
+def save_images(images: List[Image.Image], out_dir: str) -> List[str]:
+    """Save a list of slide images as slide_1.png ... and return their paths."""
+    os.makedirs(out_dir, exist_ok=True)
     paths = []
-    for i, im in enumerate(slides, start=1):
+    for i, im in enumerate(images, start=1):
         p = os.path.join(out_dir, f"slide_{i}.png")
         im.save(p, "PNG")
         paths.append(p)
     return paths
+
+
+def render_carousel(snap: Snapshot, tip: Tuple[str, str], out_dir: str) -> List[str]:
+    return save_images(build_recap_slides(snap, tip), out_dir)
+
+
+# ---------------------------------------------------------------------------
+# Generic, reusable slide primitives used by the other post types (posts.py).
+# ---------------------------------------------------------------------------
+
+def title_slide(kicker: str, title_lines: List[str], subtitle: str = "") -> Image.Image:
+    img, draw = _new_canvas()
+    draw.text((MARGIN, 200), kicker.upper(), font=font(44, True),
+              fill=config.COLOR_ACCENT)
+    y = 320
+    for line in title_lines:
+        draw.text((MARGIN, y), line, font=font(88, True), fill=config.COLOR_TEXT)
+        y += 110
+    if subtitle:
+        draw.text((MARGIN, y + 30), subtitle, font=font(46), fill=config.COLOR_MUTED)
+    return img
+
+
+def quotes_slide(title: str, quotes: List[Quote]) -> Image.Image:
+    img, draw = _new_canvas()
+    draw.text((MARGIN, 130), title, font=font(56, True), fill=config.COLOR_TEXT)
+    y = 300
+    for q in quotes:
+        color = config.COLOR_UP if q.is_up else config.COLOR_DOWN
+        draw.text((MARGIN, y), q.name, font=font(44, True), fill=config.COLOR_TEXT)
+        val = f"{q.last:,.2f}"
+        draw.text((MARGIN, y + 54), val, font=font(32), fill=config.COLOR_MUTED)
+        pct = f"{q.change_pct:+.2f}%"
+        draw.text((W - MARGIN - draw.textlength(pct, font=font(48, True)), y + 10),
+                  pct, font=font(48, True), fill=color)
+        y += 165
+    return img
+
+
+def text_slide(kicker: str, title: str, body: str,
+               body_size: int = 46) -> Image.Image:
+    img, draw = _new_canvas()
+    if kicker:
+        draw.text((MARGIN, 150), kicker.upper(), font=font(40, True),
+                  fill=config.COLOR_ACCENT)
+    draw.text((MARGIN, 250), title, font=font(60, True), fill=config.COLOR_TEXT)
+    y = 400
+    for line in _wrap(draw, body, font(body_size), W - 2 * MARGIN):
+        draw.text((MARGIN, y), line, font=font(body_size), fill=config.COLOR_TEXT)
+        y += int(body_size * 1.4)
+    return img
+
+
+def bullets_slide(title: str, bullets: List[str], numbered: bool = False,
+                  tags: Optional[List[str]] = None) -> Image.Image:
+    img, draw = _new_canvas()
+    draw.text((MARGIN, 130), title, font=font(56, True), fill=config.COLOR_TEXT)
+    y = 300
+    for i, b in enumerate(bullets):
+        marker = f"{i + 1}." if numbered else "•"
+        draw.text((MARGIN, y), marker, font=font(40, True), fill=config.COLOR_ACCENT)
+        lines = _wrap(draw, b, font(38), W - 2 * MARGIN - 70)
+        for j, line in enumerate(lines):
+            draw.text((MARGIN + 70, y + j * 50), line, font=font(38),
+                      fill=config.COLOR_TEXT)
+        block_h = max(1, len(lines)) * 50
+        if tags and i < len(tags) and tags[i]:
+            draw.text((MARGIN + 70, y + block_h), tags[i], font=font(28, True),
+                      fill=config.COLOR_MUTED)
+            block_h += 44
+        y += block_h + 40
+    return img
+
+
+def two_option_slide(a: str, b: str) -> Image.Image:
+    img, draw = _new_canvas()
+    # Option A (top half), Option B (bottom half) with a divider.
+    draw.rectangle([0, H // 2 - 3, W, H // 2 + 3], fill=config.COLOR_ACCENT)
+    for label, cy in ((a, H // 4 + 40), (b, 3 * H // 4 - 20)):
+        w = draw.textlength(label, font=font(80, True))
+        draw.text(((W - w) / 2, cy), label, font=font(80, True), fill=config.COLOR_TEXT)
+    vs_w = draw.textlength("VS", font=font(52, True))
+    draw.text(((W - vs_w) / 2, H // 2 - 34), "VS", font=font(52, True),
+              fill=config.COLOR_ACCENT)
+    return img
+
+
+def outro_slide() -> Image.Image:
+    return _slide_outro()
