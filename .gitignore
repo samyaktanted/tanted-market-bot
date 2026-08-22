@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-# Note: output/ is intentionally NOT ignored — CI commits it so the images
-# are served publicly for the Graph API. Delete this line to keep it ignored
-# if you host images elsewhere.
+# Generated slides are disposable and ignored locally to avoid merge conflicts.
+# CI force-adds them (git add -f output/) so they're still served publicly for
+# the Graph API at the run's commit.
+output/
