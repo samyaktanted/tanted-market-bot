@@ -182,6 +182,59 @@ def build_mutualfunds() -> Tuple[List[Image.Image], str]:
     return slides, caption
 
 
+# --- REITs & InvITs 101 (premium template, educational) ------------------
+def build_reitinvit() -> Tuple[List[Image.Image], str]:
+    total = 7
+    slides = [
+        premium.cover("REITs & INVITS", ["REITs & InvITs,", "explained"],
+                      "Invest in real estate & infrastructure", total),
+        premium.section("What are they?", [
+            ("REIT",
+             "Real Estate Investment Trust — pools money to own rent-earning "
+             "property like malls, offices and warehouses."),
+            ("InvIT",
+             "Infrastructure Investment Trust — owns income assets like highways, "
+             "power transmission lines and pipelines."),
+        ], page=2, total=total),
+        premium.section("How they work", [
+            ("Listed & tradable", "Both list on the exchange and trade like shares."),
+            ("You own units", "You buy 'units' — each is a small slice of the trust."),
+            ("Income pass-through",
+             "They pay out most of their income to unitholders regularly."),
+        ], page=3, total=total),
+        premium.section("Why people consider them", [
+            ("Regular income", "Distributions can offer a steady payout stream."),
+            ("Diversification", "Exposure beyond just stocks and bonds."),
+            ("Access + liquidity",
+             "Own a share of big assets with a small amount; sell when listed."),
+        ], page=4, total=total),
+        premium.section("Know the risks", [
+            ("Rate sensitive", "Prices often dip when interest rates rise."),
+            ("Market swings", "Unit prices move with the market, not just the assets."),
+            ("Concentration", "Returns depend on a limited set of assets."),
+        ], page=5, total=total),
+        premium.section("Key terms", [
+            ("Unit", "One tradable slice of the trust."),
+            ("DPU", "Distribution Per Unit — income paid per unit."),
+            ("Yield", "Annual distribution as a % of the unit price."),
+        ], page=6, total=total),
+        premium.outro(page=7, total=total),
+    ]
+    caption = (
+        "\U0001F3E2 REITs & InvITs, explained\n\n"
+        "Want a slice of real estate or infrastructure without buying a whole "
+        "building or highway? That's what these trusts let you do:\n\n"
+        "\U0001F3EC REIT — owns rent-earning property (malls, offices, warehouses)\n"
+        "\U0001F6E3️ InvIT — owns income infrastructure (roads, power lines, pipelines)\n\n"
+        "Both list on the exchange, you buy 'units', and they pass most of their "
+        "income back to you as regular distributions.\n\n"
+        "Remember: unit prices swing with the market and are sensitive to interest "
+        "rates. Save this \U0001F516 and follow for more."
+        + _footer_caption("#reit #invit #realestate #passiveincome #investing101")
+    )
+    return slides, caption
+
+
 POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "recap": build_recap,
     "global": build_global,
@@ -190,6 +243,7 @@ POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "term": build_term,
     "thisorthat": build_thisorthat,
     "mutualfunds": build_mutualfunds,
+    "reitinvit": build_reitinvit,
 }
 
 # Weekday rotation for the "extra" (non-recap) daily post. Mon=0 .. Sun=6.
