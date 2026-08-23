@@ -216,6 +216,25 @@ def book(d, cx, cy, r, c):
                   outline=c, width=max(2, w - 1))
 
 
+def chat(d, cx, cy, r, c):
+    w = _w(r)
+    d.rounded_rectangle([cx - r, cy - r * 0.8, cx + r, cy + r * 0.35], radius=r * 0.3,
+                        outline=c, width=w)
+    d.polygon([(cx - r * 0.55, cy + r * 0.3), (cx - r * 0.15, cy + r * 0.3),
+               (cx - r * 0.55, cy + r * 0.9)], fill=c)
+    for dx in (-r * 0.45, 0, r * 0.45):
+        d.ellipse([cx + dx - r * 0.12, cy - r * 0.35, cx + dx + r * 0.12, cy - r * 0.11],
+                  fill=c)
+
+
+def spark(d, cx, cy, r, c):
+    # four-point sparkle (AI feel)
+    d.polygon([(cx, cy - r), (cx + r * 0.22, cy - r * 0.22), (cx + r, cy),
+               (cx + r * 0.22, cy + r * 0.22), (cx, cy + r),
+               (cx - r * 0.22, cy + r * 0.22), (cx - r, cy),
+               (cx - r * 0.22, cy - r * 0.22)], fill=c)
+
+
 def question(d, cx, cy, r, c):
     w = _w(r)
     d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=c, width=w)
@@ -242,6 +261,7 @@ ICONS: Dict[str, Callable] = {
     "building": building, "road": road, "percent": percent, "target": target,
     "check": check, "warning": warning, "swap": swap, "snowball": snowball,
     "pie": pie, "grid": grid, "book": book, "question": question, "rupee": coin_r,
+    "chat": chat, "spark": spark,
 }
 
 

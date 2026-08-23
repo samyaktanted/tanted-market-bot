@@ -310,7 +310,55 @@ def build_sip() -> Tuple[List[Image.Image], str]:
     return _assemble(specs), caption
 
 
+# --- Meet Tara, the website AI advisor (product promo) --------------------
+def build_tara() -> Tuple[List[Image.Image], str]:
+    specs = [
+        lambda p, t: premium.cover("MEET TARA", ["Your AI", "advisor"],
+                                   "Chat. Get a personalized plan. Free.", t,
+                                   hero="chat"),
+        lambda p, t: premium.section("What Tara does", [
+            ("Plain-language chat", "Answer a few quick questions in your own words "
+             "— no long forms.", "chat"),
+            ("A personalized plan", "Get a comprehensive financial plan built around "
+             "your goals.", "target"),
+        ], p, t),
+        lambda p, t: premium.section("Ask Tara about", [
+            ("Retirement", "“Plan for retirement”", "piggy"),
+            ("Your investments", "“Review my investments”", "chart_up"),
+            ("Getting started", "“I'm just getting started”", "bulb"),
+            ("Saving on taxes", "“Save on taxes”", "percent"),
+        ], p, t),
+        lambda p, t: premium.section("Why you'll like it", [
+            ("No long forms", "Just a quick, friendly chat.", "check"),
+            ("Personalized", "Guidance tailored to your goals.", "target"),
+            ("Private", "Your answers are used only to generate your plan.", "shield"),
+        ], p, t),
+        lambda p, t: premium.text_block("Try it now", "Chat with Tara",
+                                        "Head to tantedinvestments.com/ai-advisor "
+                                        "(link in bio). It takes just a couple of "
+                                        "minutes — and it's free.", p, t),
+        lambda p, t: premium.outro(p, t),
+    ]
+    caption = (
+        "\U0001F916 Meet Tara — your AI financial advisor\n\n"
+        "Building a financial plan usually means long forms and jargon. Tara makes "
+        "it a conversation: answer a few quick questions in plain language and get "
+        "a comprehensive, personalized plan.\n\n"
+        "Ask her things like:\n"
+        "• “Plan for retirement”\n"
+        "• “Review my investments”\n"
+        "• “I'm just getting started”\n"
+        "• “Save on taxes”\n\n"
+        "\U0001F510 Private — your answers are used only to generate your plan.\n\n"
+        "\U0001F449 Try it free: tantedinvestments.com/ai-advisor (link in bio)\n\n"
+        "Note: Tara is an AI assistant, not a human advisor."
+        + _footer_caption("#aiadvisor #fintech #financialplanning #personalfinance")
+    )
+    return _assemble(specs), caption
+
+
 POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
+    "tara": build_tara,
     "recap": build_recap,
     "global": build_global,
     "news": build_news,
