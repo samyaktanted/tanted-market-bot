@@ -1,7 +1,7 @@
 """Registry of post types. Each builder returns (images, caption).
 
-Every post type now uses the premium branded template (premium.py): gradient
-background, gold glow, logo badges, cards and page numbers.
+Every post type uses the premium branded template (premium.py): gradient
+background, gold glow, logo badges, cards, icons and page numbers.
 
 Add a new post type by writing a build_* function and registering it in
 POST_TYPES. Daily/extra workflows pick a type by name or by weekday."""
@@ -27,7 +27,6 @@ def _footer_caption(extra_tags: str = "") -> str:
 
 
 def _assemble(specs: List[Callable[[int, int], Image.Image]]) -> List[Image.Image]:
-    """specs are functions (page, total) -> Image. Fills in page/total for you."""
     total = len(specs)
     return [fn(i + 1, total) for i, fn in enumerate(specs)]
 
@@ -39,7 +38,7 @@ def build_recap() -> Tuple[List[Image.Image], str]:
     tip = tips.tip_for_today()
     specs = [
         lambda p, t: premium.cover("MARKET RECAP", ["Daily market", "recap"],
-                                   snap.date_ist, t),
+                                   snap.date_ist, t, hero="chart_up"),
         lambda p, t: premium.rows("Where markets closed", snap.indices, p, t),
     ]
     if snap.gainers:
@@ -47,7 +46,7 @@ def build_recap() -> Tuple[List[Image.Image], str]:
     if snap.losers:
         specs.append(lambda p, t: premium.rows("Top losers", snap.losers, p, t))
     specs.append(lambda p, t: premium.section("Tip of the day",
-                                              [(tip[0], tip[1])], p, t))
+                                              [(tip[0], tip[1], "bulb")], p, t))
     specs.append(lambda p, t: premium.outro(p, t))
     return _assemble(specs), content.build_caption(snap, tip)
 
@@ -58,7 +57,7 @@ def build_global() -> Tuple[List[Image.Image], str]:
     cues = market_data.get_quotes(market_data.GLOBAL_CUES)
     extras = market_data.get_quotes(market_data.COMMODITIES_FX)
     specs = [lambda p, t: premium.cover("GLOBAL CUES", ["Global", "cues"],
-                                        f"Good morning  |  {date_str}", t)]
+                                        f"Good morning  |  {date_str}", t, hero="globe")]
     if cues:
         specs.append(lambda p, t: premium.rows("Overnight global markets", cues, p, t))
     if extras:
@@ -77,7 +76,7 @@ def build_news() -> Tuple[List[Image.Image], str]:
     date_str = market_data.today_ist()
     heads = news.get_headlines(limit=4)
     specs = [lambda p, t: premium.cover("MARKET NEWS", ["Today in", "markets"],
-                                        date_str, t)]
+                                        date_str, t, hero="newspaper")]
     if heads:
         items = [(h.title, h.source) for h in heads]
         specs.append(lambda p, t: premium.list_slide("Top headlines", items, p, t))
@@ -101,7 +100,7 @@ def build_quiz() -> Tuple[List[Image.Image], str]:
     ans = letters[q["answer"]]
     specs = [
         lambda p, t: premium.cover("QUIZ TIME", ["Test", "yourself"],
-                                   "Swipe to reveal the answer", t),
+                                   "Swipe to reveal the answer", t, hero="question"),
         lambda p, t: premium.text_block("Question", q["q"],
                                         "Comment your answer before you swipe!", p, t),
         lambda p, t: premium.section("Pick one", opt_cards, p, t),
@@ -120,7 +119,7 @@ def build_term() -> Tuple[List[Image.Image], str]:
     tm = library.term_for_today()
     specs = [
         lambda p, t: premium.cover("TERM OF THE DAY", ["Jargon", "buster"],
-                                   tm["term"], t),
+                                   tm["term"], t, hero="book"),
         lambda p, t: premium.text_block("What it means", tm["term"], tm["def"],
                                         p, t, body_size=48),
         lambda p, t: premium.text_block("Example", tm["term"], tm["eg"],
@@ -138,7 +137,7 @@ def build_thisorthat() -> Tuple[List[Image.Image], str]:
     to = library.this_or_that_for_today()
     specs = [
         lambda p, t: premium.cover("THIS OR THAT", ["This", "or that?"],
-                                   to["context"], t),
+                                   to["context"], t, hero="scale"),
         lambda p, t: premium.versus(to["a"], to["b"], p, t),
         lambda p, t: premium.text_block("Your call", f"{to['a']} or {to['b']}?",
                                         "There's no single right answer — it depends "
@@ -156,30 +155,33 @@ def build_thisorthat() -> Tuple[List[Image.Image], str]:
 def build_mutualfunds() -> Tuple[List[Image.Image], str]:
     specs = [
         lambda p, t: premium.cover("MUTUAL FUNDS 101", ["Mutual funds,", "explained"],
-                                   "The 2-minute beginner's guide", t),
+                                   "The 2-minute beginner's guide", t, hero="bar_chart"),
         lambda p, t: premium.section("What is a mutual fund?", [
             ("The idea", "It pools money from many investors, and a professional "
-             "manager invests it in a basket of stocks, bonds or both."),
+             "manager invests it in a basket of stocks, bonds or both.", "bulb"),
             ("Why people use them", "Instant diversification and professional "
-             "management — even with a small ₹500 monthly SIP."),
+             "management — even with a small ₹500 monthly SIP.", "grid"),
         ], p, t),
         lambda p, t: premium.section("The main types", [
-            ("Equity funds", "Mostly stocks — higher growth, bigger swings."),
-            ("Debt funds", "Bonds / fixed income — steadier, lower risk."),
-            ("Hybrid funds", "A blend of equity + debt for balance."),
-            ("Index funds & ETFs", "Track an index like Nifty 50 at very low cost."),
+            ("Equity funds", "Mostly stocks — higher growth, bigger swings.", "chart_up"),
+            ("Debt funds", "Bonds / fixed income — steadier, lower risk.", "shield"),
+            ("Hybrid funds", "A blend of equity + debt for balance.", "scale"),
+            ("Index funds & ETFs", "Track an index like Nifty 50 at very low cost.",
+             "bar_chart"),
         ], p, t),
         lambda p, t: premium.section("Key terms to know", [
-            ("NAV", "Net Asset Value — the per-unit price of the fund."),
-            ("Expense ratio", "The fund's annual fee. Lower is better."),
-            ("AUM", "Assets Under Management — total money in the fund."),
-            ("Exit load", "A small fee if you redeem too early."),
+            ("NAV", "Net Asset Value — the per-unit price of the fund.", "rupee"),
+            ("Expense ratio", "The fund's annual fee. Lower is better.", "percent"),
+            ("AUM", "Assets Under Management — total money in the fund.", "coins"),
+            ("Exit load", "A small fee if you redeem too early.", "warning"),
         ], p, t),
         lambda p, t: premium.section("How to start", [
-            ("1. Set your goal", "Know your time horizon and risk comfort first."),
+            ("1. Set your goal", "Know your time horizon and risk comfort first.",
+             "target"),
             ("2. Pick a fund type", "Match it to the goal — equity for long-term "
-             "growth, debt for stability."),
-            ("3. Start an SIP", "Automate a fixed monthly amount and stay consistent."),
+             "growth, debt for stability.", "grid"),
+            ("3. Start an SIP", "Automate a fixed monthly amount and stay consistent.",
+             "calendar"),
         ], p, t),
         lambda p, t: premium.outro(p, t),
     ]
@@ -202,32 +204,39 @@ def build_mutualfunds() -> Tuple[List[Image.Image], str]:
 def build_reitinvit() -> Tuple[List[Image.Image], str]:
     specs = [
         lambda p, t: premium.cover("REITs & INVITS", ["REITs & InvITs,", "explained"],
-                                   "Invest in real estate & infrastructure", t),
+                                   "Invest in real estate & infrastructure", t,
+                                   hero="building"),
         lambda p, t: premium.section("What are they?", [
             ("REIT", "Real Estate Investment Trust — pools money to own rent-earning "
-             "property like malls, offices and warehouses."),
+             "property like malls, offices and warehouses.", "building"),
             ("InvIT", "Infrastructure Investment Trust — owns income assets like "
-             "highways, power transmission lines and pipelines."),
+             "highways, power transmission lines and pipelines.", "road"),
         ], p, t),
         lambda p, t: premium.section("How they work", [
-            ("Listed & tradable", "Both list on the exchange and trade like shares."),
-            ("You own units", "You buy 'units' — each is a small slice of the trust."),
-            ("Income pass-through", "They pay out most of their income to unitholders."),
+            ("Listed & tradable", "Both list on the exchange and trade like shares.",
+             "chart_up"),
+            ("You own units", "You buy 'units' — each is a small slice of the trust.",
+             "pie"),
+            ("Income pass-through", "They pay out most of their income to unitholders.",
+             "coins"),
         ], p, t),
         lambda p, t: premium.section("Why people consider them", [
-            ("Regular income", "Distributions can offer a steady payout stream."),
-            ("Diversification", "Exposure beyond just stocks and bonds."),
-            ("Access + liquidity", "Own a share of big assets with a small amount."),
+            ("Regular income", "Distributions can offer a steady payout stream.",
+             "coins"),
+            ("Diversification", "Exposure beyond just stocks and bonds.", "grid"),
+            ("Access + liquidity", "Own a share of big assets with a small amount.",
+             "check"),
         ], p, t),
         lambda p, t: premium.section("Know the risks", [
-            ("Rate sensitive", "Prices often dip when interest rates rise."),
-            ("Market swings", "Unit prices move with the market, not just the assets."),
-            ("Concentration", "Returns depend on a limited set of assets."),
+            ("Rate sensitive", "Prices often dip when interest rates rise.", "percent"),
+            ("Market swings", "Unit prices move with the market, not just the assets.",
+             "chart_down"),
+            ("Concentration", "Returns depend on a limited set of assets.", "target"),
         ], p, t),
         lambda p, t: premium.section("Key terms", [
-            ("Unit", "One tradable slice of the trust."),
-            ("DPU", "Distribution Per Unit — income paid per unit."),
-            ("Yield", "Annual distribution as a % of the unit price."),
+            ("Unit", "One tradable slice of the trust.", "pie"),
+            ("DPU", "Distribution Per Unit — income paid per unit.", "coins"),
+            ("Yield", "Annual distribution as a % of the unit price.", "percent"),
         ], p, t),
         lambda p, t: premium.outro(p, t),
     ]
@@ -250,32 +259,34 @@ def build_reitinvit() -> Tuple[List[Image.Image], str]:
 def build_sip() -> Tuple[List[Image.Image], str]:
     specs = [
         lambda p, t: premium.cover("SIP EXPLAINED", ["The power", "of SIP"],
-                                   "Small amounts, big habits", t),
+                                   "Small amounts, big habits", t, hero="piggy"),
         lambda p, t: premium.section("What is an SIP?", [
             ("The idea", "A Systematic Investment Plan invests a fixed amount "
-             "automatically at regular intervals — say ₹1,000 every month."),
+             "automatically at regular intervals — say ₹1,000 every month.", "calendar"),
             ("Why it works", "You invest through ups and downs, so you never have "
-             "to time the market."),
+             "to time the market.", "chart_up"),
         ], p, t),
         lambda p, t: premium.section("Two superpowers", [
             ("Rupee-cost averaging", "You buy more units when prices are low and "
-             "fewer when high, smoothing your average cost."),
+             "fewer when high, smoothing your average cost.", "swap"),
             ("Compounding", "Returns start earning their own returns — the longer "
-             "you stay, the bigger the snowball."),
+             "you stay, the bigger the snowball.", "snowball"),
         ], p, t),
         lambda p, t: premium.section("How to choose a fund", [
             ("Match the goal", "Long-term wealth: equity funds. Short-term needs: "
-             "debt funds."),
+             "debt funds.", "target"),
             ("Prefer low cost", "A lower expense ratio keeps more returns with you; "
-             "index funds are cheap."),
+             "index funds are cheap.", "percent"),
             ("Check consistency", "Look at long-term track record and risk — not just "
-             "last year's return."),
+             "last year's return.", "check"),
         ], p, t),
         lambda p, t: premium.section("Common mistakes", [
             ("Stopping in a dip", "Dips are when SIPs buy cheap — pausing defeats "
-             "the purpose."),
-            ("Chasing last year's winner", "Past returns don't guarantee future ones."),
-            ("No goal or horizon", "Invest with a clear purpose and time frame."),
+             "the purpose.", "warning"),
+            ("Chasing last year's winner", "Past returns don't guarantee future ones.",
+             "chart_down"),
+            ("No goal or horizon", "Invest with a clear purpose and time frame.",
+             "target"),
         ], p, t),
         lambda p, t: premium.text_block("Bottom line", "Start small, stay consistent",
                                         "Even ₹500 a month — started early and left to "
@@ -311,15 +322,8 @@ POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "sip": build_sip,
 }
 
-# Weekday rotation for the "extra" (non-recap) daily post. Mon=0 .. Sun=6.
 EXTRA_ROTATION = {
-    0: "global",       # Monday
-    1: "quiz",         # Tuesday
-    2: "term",         # Wednesday
-    3: "thisorthat",   # Thursday
-    4: "news",         # Friday
-    5: "term",         # Saturday
-    6: "quiz",         # Sunday
+    0: "global", 1: "quiz", 2: "term", 3: "thisorthat", 4: "news", 5: "term", 6: "quiz",
 }
 
 

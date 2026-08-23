@@ -8,6 +8,7 @@ from typing import List, Optional, Tuple
 from PIL import Image, ImageDraw, ImageFilter
 
 import config
+import icons
 import render
 
 W, H, MARGIN = render.W, render.H, render.MARGIN
@@ -104,22 +105,29 @@ def chip(draw: ImageDraw.ImageDraw, x: int, y: int, text: str) -> int:
 
 
 def card(draw: ImageDraw.ImageDraw, x: int, y: int, w: int, title: str, body: str,
-         fill: str = CARD_FILL) -> int:
-    """Rounded card with an accent side-bar, a title and wrapped body.
-    Returns the bottom y so callers can stack cards."""
-    inner_x = x + 46
-    inner_w = w - 46 - 40
+         fill: str = CARD_FILL, icon: Optional[str] = None) -> int:
+    """Rounded card with a title, wrapped body, and either an accent side-bar or
+    a circular icon badge on the left. Returns the bottom y for stacking."""
+    inner_x = (x + 128) if icon else (x + 46)
+    inner_w = w - (inner_x - x) - 40
     tf, bf = font(40, True), font(34)
     body_lines = _wrap(draw, body, bf, inner_w) if body else []
     title_h = 54 if title else 0
     body_h = len(body_lines) * 46
     pad = 34
-    h = pad + title_h + (14 if title and body_lines else 0) + body_h + pad
+    h = max(pad + title_h + (14 if title and body_lines else 0) + body_h + pad,
+            (108 if icon else 0))
 
     draw.rounded_rectangle([x, y, x + w, y + h], radius=28, fill=fill)
-    # accent side bar
-    draw.rounded_rectangle([x + 18, y + 22, x + 30, y + h - 22], radius=6,
-                           fill=config.COLOR_ACCENT)
+    if icon:
+        bcx, bcy, R = x + 66, y + h // 2, 40
+        draw.ellipse([bcx - R, bcy - R, bcx + R, bcy + R], fill=GRAD_TOP)
+        draw.ellipse([bcx - R, bcy - R, bcx + R, bcy + R], outline=config.COLOR_ACCENT,
+                     width=3)
+        icons.draw(draw, icon, bcx, bcy, R * 0.55, config.COLOR_ACCENT)
+    else:
+        draw.rounded_rectangle([x + 18, y + 22, x + 30, y + h - 22], radius=6,
+                               fill=config.COLOR_ACCENT)
     cy = y + pad
     if title:
         draw.text((inner_x, cy), title, font=tf, fill=config.COLOR_TEXT)
@@ -131,12 +139,12 @@ def card(draw: ImageDraw.ImageDraw, x: int, y: int, w: int, title: str, body: st
 
 
 def cover(kicker: str, title_lines: List[str], subtitle: str,
-          total: int) -> Image.Image:
+          total: int, hero: Optional[str] = None) -> Image.Image:
     img, draw = canvas(page=1, total=total)
-    # Hero logo badge, top-right.
-    hero = _logo_badge(150)
-    if hero is not None:
-        img.paste(hero, (W - MARGIN - 150, 150), hero)
+    # Brand logo badge, top-right.
+    logo = _logo_badge(150)
+    if logo is not None:
+        img.paste(logo, (W - MARGIN - 150, 150), logo)
     y = 220
     y = chip(draw, MARGIN, y, kicker) + 70
     for line in title_lines:
@@ -147,19 +155,28 @@ def cover(kicker: str, title_lines: List[str], subtitle: str,
         for ln in _wrap(draw, subtitle, font(44), W - 2 * MARGIN):
             draw.text((MARGIN, y), ln, font=font(44), fill=config.COLOR_MUTED)
             y += 60
+    # Hero graphic centred in the lower area.
+    if hero:
+        hcx, hcy, R = W // 2, 1000, 170
+        draw.ellipse([hcx - R, hcy - R, hcx + R, hcy + R], fill=CARD_FILL)
+        draw.ellipse([hcx - R, hcy - R, hcx + R, hcy + R], outline=config.COLOR_ACCENT,
+                     width=4)
+        icons.draw(draw, hero, hcx, hcy, R * 0.52, config.COLOR_ACCENT)
     return img
 
 
-def section(title: str, cards: List[Tuple[str, str]], page: int,
-            total: int) -> Image.Image:
-    """A titled slide with a stack of cards. cards = [(title, body), ...]."""
+def section(title: str, cards: list, page: int, total: int) -> Image.Image:
+    """A titled slide with a stack of cards. Each card is (title, body) or
+    (title, body, icon_name)."""
     img, draw = canvas(page=page, total=total)
     draw.text((MARGIN, 150), title, font=font(60, True), fill=config.COLOR_TEXT)
     y = 300
     alt = False
-    for c_title, c_body in cards:
+    for c in cards:
+        c_title, c_body = c[0], c[1]
+        c_icon = c[2] if len(c) > 2 else None
         y = card(draw, MARGIN, y, W - 2 * MARGIN, c_title, c_body,
-                 fill=CARD_FILL_ALT if alt else CARD_FILL) + 26
+                 fill=CARD_FILL_ALT if alt else CARD_FILL, icon=c_icon) + 26
         alt = not alt
     return img
 
@@ -191,8 +208,15 @@ def rows(title: str, quotes, page: int, total: int) -> Image.Image:
         draw.text((MARGIN, y + 56), f"{q.last:,.2f}", font=font(32),
                   fill=config.COLOR_MUTED)
         pct = f"{q.change_pct:+.2f}%"
-        draw.text((W - MARGIN - draw.textlength(pct, font=font(52, True)), y + 14),
-                  pct, font=font(52, True), fill=color)
+        pf = font(52, True)
+        px = W - MARGIN - draw.textlength(pct, font=pf)
+        draw.text((px, y + 14), pct, font=pf, fill=color)
+        # up/down triangle to the left of the percentage
+        ax, ay, s = px - 46, y + 42, 16
+        if q.is_up:
+            draw.polygon([(ax, ay + s), (ax + 2 * s, ay + s), (ax + s, ay - s)], fill=color)
+        else:
+            draw.polygon([(ax, ay - s), (ax + 2 * s, ay - s), (ax + s, ay + s)], fill=color)
         draw.line([(MARGIN, y + 120), (W - MARGIN, y + 120)], fill="#1C3A5B", width=2)
         y += 158
     return img
