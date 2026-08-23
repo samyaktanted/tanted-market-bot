@@ -164,6 +164,79 @@ def section(title: str, cards: List[Tuple[str, str]], page: int,
     return img
 
 
+def text_block(kicker: str, title: str, body: str, page: int, total: int,
+               body_size: int = 46) -> Image.Image:
+    img, draw = canvas(page=page, total=total)
+    y = 170
+    if kicker:
+        y = chip(draw, MARGIN, y, kicker) + 50
+    for ln in _wrap(draw, title, font(60, True), W - 2 * MARGIN):
+        draw.text((MARGIN, y), ln, font=font(60, True), fill=config.COLOR_TEXT)
+        y += 78
+    y += 30
+    for ln in _wrap(draw, body, font(body_size), W - 2 * MARGIN):
+        draw.text((MARGIN, y), ln, font=font(body_size), fill=config.COLOR_MUTED)
+        y += int(body_size * 1.4)
+    return img
+
+
+def rows(title: str, quotes, page: int, total: int) -> Image.Image:
+    """A market-data slide: name + value (left) and % change (right, coloured)."""
+    img, draw = canvas(page=page, total=total)
+    draw.text((MARGIN, 150), title, font=font(58, True), fill=config.COLOR_TEXT)
+    y = 320
+    for q in quotes:
+        color = config.COLOR_UP if q.is_up else config.COLOR_DOWN
+        draw.text((MARGIN, y), q.name, font=font(44, True), fill=config.COLOR_TEXT)
+        draw.text((MARGIN, y + 56), f"{q.last:,.2f}", font=font(32),
+                  fill=config.COLOR_MUTED)
+        pct = f"{q.change_pct:+.2f}%"
+        draw.text((W - MARGIN - draw.textlength(pct, font=font(52, True)), y + 14),
+                  pct, font=font(52, True), fill=color)
+        draw.line([(MARGIN, y + 120), (W - MARGIN, y + 120)], fill="#1C3A5B", width=2)
+        y += 158
+    return img
+
+
+def list_slide(title: str, items: List[Tuple[str, str]], page: int,
+               total: int) -> Image.Image:
+    """Numbered list: accent number chip + wrapped main text + muted sub."""
+    img, draw = canvas(page=page, total=total)
+    draw.text((MARGIN, 140), title, font=font(58, True), fill=config.COLOR_TEXT)
+    y = 300
+    for i, (main, sub) in enumerate(items, start=1):
+        # number chip
+        draw.rounded_rectangle([MARGIN, y, MARGIN + 56, y + 56], radius=16,
+                               fill=config.COLOR_ACCENT)
+        num = str(i)
+        draw.text((MARGIN + 28 - draw.textlength(num, font=font(34, True)) / 2, y + 8),
+                  num, font=font(34, True), fill=GRAD_TOP)
+        tx = MARGIN + 84
+        lines = _wrap(draw, main, font(38, True), W - MARGIN - tx)
+        for j, ln in enumerate(lines):
+            draw.text((tx, y + j * 48), ln, font=font(38, True), fill=config.COLOR_TEXT)
+        h = len(lines) * 48
+        if sub:
+            draw.text((tx, y + h), sub, font=font(30), fill=config.COLOR_MUTED)
+            h += 42
+        y += max(h, 56) + 34
+    return img
+
+
+def versus(a: str, b: str, page: int, total: int) -> Image.Image:
+    img, draw = canvas(page=page, total=total)
+    draw.line([(0, H // 2 - 2), (W, H // 2 + 2)], fill=config.COLOR_ACCENT, width=4)
+    for label, cy in ((a, H // 4 + 20), (b, 3 * H // 4 - 60)):
+        w = draw.textlength(label, font=font(84, True))
+        draw.text(((W - w) / 2, cy), label, font=font(84, True), fill=config.COLOR_TEXT)
+    r = 54
+    draw.ellipse([W // 2 - r, H // 2 - r, W // 2 + r, H // 2 + r], fill=config.COLOR_ACCENT)
+    vs = "VS"
+    draw.text((W // 2 - draw.textlength(vs, font=font(40, True)) / 2, H // 2 - 26),
+              vs, font=font(40, True), fill=GRAD_TOP)
+    return img
+
+
 def outro(page: int, total: int) -> Image.Image:
     img, draw = canvas(page=page, total=total)
     y = 240

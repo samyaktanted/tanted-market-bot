@@ -1,7 +1,10 @@
 """Registry of post types. Each builder returns (images, caption).
 
+Every post type now uses the premium branded template (premium.py): gradient
+background, gold glow, logo badges, cards and page numbers.
+
 Add a new post type by writing a build_* function and registering it in
-POST_TYPES. The daily/extra workflows pick a type by name or by weekday."""
+POST_TYPES. Daily/extra workflows pick a type by name or by weekday."""
 from datetime import date
 from typing import Callable, Dict, List, Tuple
 
@@ -13,7 +16,6 @@ import library
 import market_data
 import news
 import premium
-import render
 
 HASHTAGS = " ".join(content.HASHTAGS)
 
@@ -24,12 +26,30 @@ def _footer_caption(extra_tags: str = "") -> str:
             f"More at {config.BRAND_WEBSITE}\n\n{config.DISCLAIMER}\n\n{tags}")
 
 
+def _assemble(specs: List[Callable[[int, int], Image.Image]]) -> List[Image.Image]:
+    """specs are functions (page, total) -> Image. Fills in page/total for you."""
+    total = len(specs)
+    return [fn(i + 1, total) for i, fn in enumerate(specs)]
+
+
 # --- Daily recap (the anchor post) ---------------------------------------
 def build_recap() -> Tuple[List[Image.Image], str]:
     import tips
     snap = market_data.get_snapshot()
     tip = tips.tip_for_today()
-    return render.build_recap_slides(snap, tip), content.build_caption(snap, tip)
+    specs = [
+        lambda p, t: premium.cover("MARKET RECAP", ["Daily market", "recap"],
+                                   snap.date_ist, t),
+        lambda p, t: premium.rows("Where markets closed", snap.indices, p, t),
+    ]
+    if snap.gainers:
+        specs.append(lambda p, t: premium.rows("Top gainers", snap.gainers, p, t))
+    if snap.losers:
+        specs.append(lambda p, t: premium.rows("Top losers", snap.losers, p, t))
+    specs.append(lambda p, t: premium.section("Tip of the day",
+                                              [(tip[0], tip[1])], p, t))
+    specs.append(lambda p, t: premium.outro(p, t))
+    return _assemble(specs), content.build_caption(snap, tip)
 
 
 # --- Global cues (pre-market / morning) ----------------------------------
@@ -37,42 +57,38 @@ def build_global() -> Tuple[List[Image.Image], str]:
     date_str = market_data.today_ist()
     cues = market_data.get_quotes(market_data.GLOBAL_CUES)
     extras = market_data.get_quotes(market_data.COMMODITIES_FX)
-
-    slides = [
-        render.title_slide("Good morning", ["GLOBAL", "CUES"], date_str),
-    ]
+    specs = [lambda p, t: premium.cover("GLOBAL CUES", ["Global", "cues"],
+                                        f"Good morning  |  {date_str}", t)]
     if cues:
-        slides.append(render.quotes_slide("Overnight global markets", cues))
+        specs.append(lambda p, t: premium.rows("Overnight global markets", cues, p, t))
     if extras:
-        slides.append(render.quotes_slide("Commodities, FX & crypto", extras))
-    slides.append(render.outro_slide())
+        specs.append(lambda p, t: premium.rows("Commodities, FX & crypto", extras, p, t))
+    specs.append(lambda p, t: premium.outro(p, t))
 
     lines = [f"Global cues \U0001F30F  |  {date_str}", ""]
     for q in cues:
         arrow = "\U0001F7E2" if q.is_up else "\U0001F534"
         lines.append(f"{arrow} {q.name}: {q.change_pct:+.2f}%")
-    caption = "\n".join(lines) + _footer_caption("#premarket #globalmarkets")
-    return slides, caption
+    return _assemble(specs), "\n".join(lines) + _footer_caption("#premarket #globalmarkets")
 
 
 # --- News roundup ---------------------------------------------------------
 def build_news() -> Tuple[List[Image.Image], str]:
     date_str = market_data.today_ist()
-    heads = news.get_headlines(limit=5)
-    slides = [render.title_slide("Today in markets", ["MARKET", "NEWS"], date_str)]
+    heads = news.get_headlines(limit=4)
+    specs = [lambda p, t: premium.cover("MARKET NEWS", ["Today in", "markets"],
+                                        date_str, t)]
     if heads:
-        bullets = [h.title for h in heads]
-        tags = [f"— {h.source}" for h in heads]
-        slides.append(render.bullets_slide("Top headlines", bullets, tags=tags))
-    slides.append(render.outro_slide())
+        items = [(h.title, h.source) for h in heads]
+        specs.append(lambda p, t: premium.list_slide("Top headlines", items, p, t))
+    specs.append(lambda p, t: premium.outro(p, t))
 
     cap_lines = [f"Today's market headlines \U0001F4F0  |  {date_str}", ""]
     for h in heads:
         cap_lines.append(f"• {h.title} — {h.source}")
     cap_lines.append("\n(Headlines aggregated from public sources; tap through to "
                      "each outlet for the full story.)")
-    caption = "\n".join(cap_lines) + _footer_caption("#marketnews #businessnews")
-    return slides, caption
+    return _assemble(specs), "\n".join(cap_lines) + _footer_caption("#marketnews #businessnews")
 
 
 # --- Quiz (with reveal) ---------------------------------------------------
@@ -80,92 +96,92 @@ def build_quiz() -> Tuple[List[Image.Image], str]:
     q = library.quiz_for_today()
     opts = q["options"]
     letters = ["A", "B", "C", "D"]
-    opt_lines = [f"{letters[i]}.  {opt}" for i, opt in enumerate(opts)]
-    ans_letter = letters[q["answer"]]
-
-    slides = [
-        render.title_slide("Market quiz", ["QUIZ", "TIME"], "Swipe & test yourself"),
-        render.text_slide("Question", q["q"], "Comment your answer before you swipe!",
-                          body_size=44),
-        render.bullets_slide("Pick one", opt_lines),
-        render.text_slide("Answer",
-                          f"{ans_letter}. {opts[q['answer']]}", q["why"],
-                          body_size=42),
-        render.outro_slide(),
+    opt_cards = [(f"{letters[i]}.  {o}", "") for i, o in enumerate(opts)]
+    opt_lines = [f"{letters[i]}.  {o}" for i, o in enumerate(opts)]
+    ans = letters[q["answer"]]
+    specs = [
+        lambda p, t: premium.cover("QUIZ TIME", ["Test", "yourself"],
+                                   "Swipe to reveal the answer", t),
+        lambda p, t: premium.text_block("Question", q["q"],
+                                        "Comment your answer before you swipe!", p, t),
+        lambda p, t: premium.section("Pick one", opt_cards, p, t),
+        lambda p, t: premium.text_block("Answer", f"{ans}. {opts[q['answer']]}",
+                                        q["why"], p, t),
+        lambda p, t: premium.outro(p, t),
     ]
-    caption = (f"\U0001F9E0 Market quiz!\n\n{q['q']}\n\n"
-               + "\n".join(opt_lines)
+    caption = (f"\U0001F9E0 Market quiz!\n\n{q['q']}\n\n" + "\n".join(opt_lines)
                + "\n\nComment your guess \U0001F447 (answer on the last slide)"
                + _footer_caption("#financequiz #investingbasics"))
-    return slides, caption
+    return _assemble(specs), caption
 
 
 # --- Jargon buster / term of the day -------------------------------------
 def build_term() -> Tuple[List[Image.Image], str]:
-    t = library.term_for_today()
-    slides = [
-        render.title_slide("Jargon buster", ["TERM OF", "THE DAY"], t["term"]),
-        render.text_slide(t["term"], "What it means", t["def"], body_size=48),
-        render.text_slide("Example", t["term"], t["eg"], body_size=44),
-        render.outro_slide(),
+    tm = library.term_for_today()
+    specs = [
+        lambda p, t: premium.cover("TERM OF THE DAY", ["Jargon", "buster"],
+                                   tm["term"], t),
+        lambda p, t: premium.text_block("What it means", tm["term"], tm["def"],
+                                        p, t, body_size=48),
+        lambda p, t: premium.text_block("Example", tm["term"], tm["eg"],
+                                        p, t, body_size=46),
+        lambda p, t: premium.outro(p, t),
     ]
-    caption = (f"\U0001F4D8 Jargon buster — {t['term']}\n\n{t['def']}\n\n"
-               f"Example: {t['eg']}\n\nSave this for later \U0001F516"
+    caption = (f"\U0001F4D8 Jargon buster — {tm['term']}\n\n{tm['def']}\n\n"
+               f"Example: {tm['eg']}\n\nSave this for later \U0001F516"
                + _footer_caption("#investing101 #financeeducation"))
-    return slides, caption
+    return _assemble(specs), caption
 
 
 # --- This or That (engagement) -------------------------------------------
 def build_thisorthat() -> Tuple[List[Image.Image], str]:
-    t = library.this_or_that_for_today()
-    slides = [
-        render.title_slide("This or that", ["THIS", "OR THAT?"], t["context"]),
-        render.two_option_slide(t["a"], t["b"]),
-        render.text_slide("Your call", f"{t['a']}  or  {t['b']}?",
-                          "There's no single right answer — it depends on your goals, "
-                          "horizon and risk comfort. Tell us your pick and why \U0001F447",
-                          body_size=42),
-        render.outro_slide(),
+    to = library.this_or_that_for_today()
+    specs = [
+        lambda p, t: premium.cover("THIS OR THAT", ["This", "or that?"],
+                                   to["context"], t),
+        lambda p, t: premium.versus(to["a"], to["b"], p, t),
+        lambda p, t: premium.text_block("Your call", f"{to['a']} or {to['b']}?",
+                                        "There's no single right answer — it depends "
+                                        "on your goals, horizon and risk comfort. Tell "
+                                        "us your pick and why below.", p, t, body_size=44),
+        lambda p, t: premium.outro(p, t),
     ]
-    caption = (f"\U0001F914 This or that: {t['a']} or {t['b']}?\n\n{t['context']}\n\n"
+    caption = (f"\U0001F914 This or that: {to['a']} or {to['b']}?\n\n{to['context']}\n\n"
                f"Drop your pick in the comments \U0001F447"
                + _footer_caption("#thisorthat #personalfinance"))
-    return slides, caption
+    return _assemble(specs), caption
 
 
-# --- Mutual funds 101 (premium template, educational) --------------------
+# --- Mutual funds 101 -----------------------------------------------------
 def build_mutualfunds() -> Tuple[List[Image.Image], str]:
-    total = 6
-    slides = [
-        premium.cover("MUTUAL FUNDS 101", ["Mutual funds,", "explained"],
-                      "The 2-minute beginner's guide", total),
-        premium.section("What is a mutual fund?", [
-            ("The idea",
-             "It pools money from many investors, and a professional manager "
-             "invests it in a basket of stocks, bonds or both."),
-            ("Why people use them",
-             "Instant diversification and professional management — even with a "
-             "small amount like a ₹500 monthly SIP."),
-        ], page=2, total=total),
-        premium.section("The main types", [
+    specs = [
+        lambda p, t: premium.cover("MUTUAL FUNDS 101", ["Mutual funds,", "explained"],
+                                   "The 2-minute beginner's guide", t),
+        lambda p, t: premium.section("What is a mutual fund?", [
+            ("The idea", "It pools money from many investors, and a professional "
+             "manager invests it in a basket of stocks, bonds or both."),
+            ("Why people use them", "Instant diversification and professional "
+             "management — even with a small ₹500 monthly SIP."),
+        ], p, t),
+        lambda p, t: premium.section("The main types", [
             ("Equity funds", "Mostly stocks — higher growth, bigger swings."),
             ("Debt funds", "Bonds / fixed income — steadier, lower risk."),
             ("Hybrid funds", "A blend of equity + debt for balance."),
             ("Index funds & ETFs", "Track an index like Nifty 50 at very low cost."),
-        ], page=3, total=total),
-        premium.section("Key terms to know", [
+        ], p, t),
+        lambda p, t: premium.section("Key terms to know", [
             ("NAV", "Net Asset Value — the per-unit price of the fund."),
             ("Expense ratio", "The fund's annual fee. Lower is better."),
             ("AUM", "Assets Under Management — total money in the fund."),
             ("Exit load", "A small fee if you redeem too early."),
-        ], page=4, total=total),
-        premium.section("How to start", [
+        ], p, t),
+        lambda p, t: premium.section("How to start", [
             ("1. Set your goal", "Know your time horizon and risk comfort first."),
             ("2. Pick a fund type", "Match it to the goal — equity for long-term "
              "growth, debt for stability."),
             ("3. Start an SIP", "Automate a fixed monthly amount and stay consistent."),
-        ], page=5, total=total),
-        premium.outro(page=6, total=total),
+        ], p, t),
+        lambda p, t: premium.outro(p, t),
     ]
     caption = (
         "\U0001F4B0 Mutual Funds 101 — the 2-minute beginner's guide\n\n"
@@ -179,46 +195,41 @@ def build_mutualfunds() -> Tuple[List[Image.Image], str]:
         "tip every day."
         + _footer_caption("#mutualfunds #sip #mutualfundssahihai #investing101")
     )
-    return slides, caption
+    return _assemble(specs), caption
 
 
-# --- REITs & InvITs 101 (premium template, educational) ------------------
+# --- REITs & InvITs 101 ---------------------------------------------------
 def build_reitinvit() -> Tuple[List[Image.Image], str]:
-    total = 7
-    slides = [
-        premium.cover("REITs & INVITS", ["REITs & InvITs,", "explained"],
-                      "Invest in real estate & infrastructure", total),
-        premium.section("What are they?", [
-            ("REIT",
-             "Real Estate Investment Trust — pools money to own rent-earning "
+    specs = [
+        lambda p, t: premium.cover("REITs & INVITS", ["REITs & InvITs,", "explained"],
+                                   "Invest in real estate & infrastructure", t),
+        lambda p, t: premium.section("What are they?", [
+            ("REIT", "Real Estate Investment Trust — pools money to own rent-earning "
              "property like malls, offices and warehouses."),
-            ("InvIT",
-             "Infrastructure Investment Trust — owns income assets like highways, "
-             "power transmission lines and pipelines."),
-        ], page=2, total=total),
-        premium.section("How they work", [
+            ("InvIT", "Infrastructure Investment Trust — owns income assets like "
+             "highways, power transmission lines and pipelines."),
+        ], p, t),
+        lambda p, t: premium.section("How they work", [
             ("Listed & tradable", "Both list on the exchange and trade like shares."),
             ("You own units", "You buy 'units' — each is a small slice of the trust."),
-            ("Income pass-through",
-             "They pay out most of their income to unitholders regularly."),
-        ], page=3, total=total),
-        premium.section("Why people consider them", [
+            ("Income pass-through", "They pay out most of their income to unitholders."),
+        ], p, t),
+        lambda p, t: premium.section("Why people consider them", [
             ("Regular income", "Distributions can offer a steady payout stream."),
             ("Diversification", "Exposure beyond just stocks and bonds."),
-            ("Access + liquidity",
-             "Own a share of big assets with a small amount; sell when listed."),
-        ], page=4, total=total),
-        premium.section("Know the risks", [
+            ("Access + liquidity", "Own a share of big assets with a small amount."),
+        ], p, t),
+        lambda p, t: premium.section("Know the risks", [
             ("Rate sensitive", "Prices often dip when interest rates rise."),
             ("Market swings", "Unit prices move with the market, not just the assets."),
             ("Concentration", "Returns depend on a limited set of assets."),
-        ], page=5, total=total),
-        premium.section("Key terms", [
+        ], p, t),
+        lambda p, t: premium.section("Key terms", [
             ("Unit", "One tradable slice of the trust."),
             ("DPU", "Distribution Per Unit — income paid per unit."),
             ("Yield", "Annual distribution as a % of the unit price."),
-        ], page=6, total=total),
-        premium.outro(page=7, total=total),
+        ], p, t),
+        lambda p, t: premium.outro(p, t),
     ]
     caption = (
         "\U0001F3E2 REITs & InvITs, explained\n\n"
@@ -232,7 +243,60 @@ def build_reitinvit() -> Tuple[List[Image.Image], str]:
         "rates. Save this \U0001F516 and follow for more."
         + _footer_caption("#reit #invit #realestate #passiveincome #investing101")
     )
-    return slides, caption
+    return _assemble(specs), caption
+
+
+# --- SIP + how to choose a fund (no specific recommendations) -------------
+def build_sip() -> Tuple[List[Image.Image], str]:
+    specs = [
+        lambda p, t: premium.cover("SIP EXPLAINED", ["The power", "of SIP"],
+                                   "Small amounts, big habits", t),
+        lambda p, t: premium.section("What is an SIP?", [
+            ("The idea", "A Systematic Investment Plan invests a fixed amount "
+             "automatically at regular intervals — say ₹1,000 every month."),
+            ("Why it works", "You invest through ups and downs, so you never have "
+             "to time the market."),
+        ], p, t),
+        lambda p, t: premium.section("Two superpowers", [
+            ("Rupee-cost averaging", "You buy more units when prices are low and "
+             "fewer when high, smoothing your average cost."),
+            ("Compounding", "Returns start earning their own returns — the longer "
+             "you stay, the bigger the snowball."),
+        ], p, t),
+        lambda p, t: premium.section("How to choose a fund", [
+            ("Match the goal", "Long-term wealth: equity funds. Short-term needs: "
+             "debt funds."),
+            ("Prefer low cost", "A lower expense ratio keeps more returns with you; "
+             "index funds are cheap."),
+            ("Check consistency", "Look at long-term track record and risk — not just "
+             "last year's return."),
+        ], p, t),
+        lambda p, t: premium.section("Common mistakes", [
+            ("Stopping in a dip", "Dips are when SIPs buy cheap — pausing defeats "
+             "the purpose."),
+            ("Chasing last year's winner", "Past returns don't guarantee future ones."),
+            ("No goal or horizon", "Invest with a clear purpose and time frame."),
+        ], p, t),
+        lambda p, t: premium.text_block("Bottom line", "Start small, stay consistent",
+                                        "Even ₹500 a month — started early and left to "
+                                        "compound — can grow into a meaningful corpus "
+                                        "over the years. Consistency beats timing.", p, t),
+        lambda p, t: premium.outro(p, t),
+    ]
+    caption = (
+        "\U0001F4C8 The power of SIP\n\n"
+        "A Systematic Investment Plan invests a fixed amount automatically every "
+        "month — so you build wealth on autopilot without trying to time the "
+        "market.\n\n"
+        "Why it works: rupee-cost averaging (buy more when cheap) + compounding "
+        "(returns earning returns).\n\n"
+        "How to choose a fund (we don't recommend specific schemes): match it to "
+        "your goal, prefer a low expense ratio, and check long-term consistency — "
+        "not last year's chart.\n\n"
+        "Save this \U0001F516 and start small. Even ₹500/month adds up."
+        + _footer_caption("#sip #mutualfunds #compounding #investing101 #wealthbuilding")
+    )
+    return _assemble(specs), caption
 
 
 POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
@@ -244,6 +308,7 @@ POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "thisorthat": build_thisorthat,
     "mutualfunds": build_mutualfunds,
     "reitinvit": build_reitinvit,
+    "sip": build_sip,
 }
 
 # Weekday rotation for the "extra" (non-recap) daily post. Mon=0 .. Sun=6.
@@ -259,7 +324,6 @@ EXTRA_ROTATION = {
 
 
 def resolve_type(post_type: str) -> str:
-    """Turn 'auto-extra' into a concrete type based on today's weekday (IST)."""
     if post_type == "auto-extra":
         return EXTRA_ROTATION[date.today().weekday()]
     if post_type not in POST_TYPES:
