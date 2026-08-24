@@ -310,6 +310,59 @@ def build_sip() -> Tuple[List[Image.Image], str]:
     return _assemble(specs), caption
 
 
+# --- IPOs open now (static snapshot — NOT for rotation; data goes stale) --
+# Snapshot captured 24 Aug 2026 from public sources (Groww). IPO details change
+# daily, so regenerate/replace this data before reusing. Not in EXTRA_ROTATION.
+def build_ipo() -> Tuple[List[Image.Image], str]:
+    as_of = "24 Aug 2026"
+    ipos = [
+        ("Tempsens Instruments", "₹285–300", "closes 24 Aug"),
+        ("Augmont Enterprises", "₹750–788", "closes 25 Aug"),
+        ("Skyways Air Services", "₹131–138", "closes 27 Aug"),
+        ("Symbiotec Pharmalab", "₹938–988", "closes 27 Aug"),
+        ("Hy-tech Engineers", "₹50–53", "closes 27 Aug"),
+        ("Annu Projects", "₹94–99", "25–28 Aug"),
+    ]
+
+    def _cards(chunk):
+        return [(name, f"Price band {band}  •  {when}", "rupee") for name, band, when in chunk]
+
+    specs = [
+        lambda p, t: premium.cover("IPO WATCH", ["IPOs open", "this week"],
+                                   f"As of {as_of} — verify before you apply", t,
+                                   hero="rupee"),
+        lambda p, t: premium.section("Open for subscription", _cards(ipos[:3]), p, t),
+        lambda p, t: premium.section("Open for subscription", _cards(ipos[3:]), p, t),
+        lambda p, t: premium.section("Before you apply, check", [
+            ("The business & financials", "Read the RHP — revenue, profit, debt. Is it "
+             "actually profitable?", "book"),
+            ("Valuation", "Compare its P/E to already-listed peers. Cheap or pricey?",
+             "percent"),
+            ("Why they're raising money", "Growth/expansion is healthier than only "
+             "repaying debt or a promoter exit.", "target"),
+            ("Ignore the GMP hype", "Grey-market premium is unofficial and "
+             "speculative — not a reason to apply.", "warning"),
+        ], p, t),
+        lambda p, t: premium.outro(p, t),
+    ]
+
+    ipo_lines = [f"• {name} — {band} ({when})" for name, band, when in ipos]
+    caption = (
+        f"\U0001F514 IPOs open this week (as of {as_of})\n\n"
+        + "\n".join(ipo_lines)
+        + "\n\nBefore you apply, look past the hype:\n"
+        "\U0001F4D8 Read the RHP — revenue, profit, debt\n"
+        "\U0001F4CA Check valuation vs listed peers\n"
+        "\U0001F3AF See why they're raising money\n"
+        "⚠️ Grey-market premium (GMP) is unofficial & speculative — not a signal\n\n"
+        "This is not a recommendation to apply. Always verify lot size, IPO type "
+        "(mainboard/SME) and full details on your broker or the NSE/BSE site, and "
+        "read the RHP."
+        + _footer_caption("#ipo #ipowatch #stockmarket #sharemarket #investing")
+    )
+    return _assemble(specs), caption
+
+
 # --- Meet Tara, the website AI advisor (product promo) --------------------
 def build_tara() -> Tuple[List[Image.Image], str]:
     specs = [
@@ -359,6 +412,7 @@ def build_tara() -> Tuple[List[Image.Image], str]:
 
 POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "tara": build_tara,
+    "ipo": build_ipo,
     "recap": build_recap,
     "global": build_global,
     "news": build_news,
