@@ -363,6 +363,122 @@ def build_ipo() -> Tuple[List[Image.Image], str]:
     return _assemble(specs), caption
 
 
+# --- Per-company IPO deep-dives (static snapshots; real figures) ----------
+# Figures captured 24 Aug 2026 from public IPO pages (Groww). Verify the RHP
+# before reusing — IPO data is time-sensitive. Not in EXTRA_ROTATION.
+def _ipo_detail(kicker, title_lines, subtitle, hero, biz_body,
+                snapshot, financials, metrics, notes, caption):
+    specs = [
+        lambda p, t: premium.cover(kicker, title_lines, subtitle, t, hero=hero),
+        lambda p, t: premium.section("IPO snapshot", snapshot, p, t),
+        lambda p, t: premium.text_block("The business", "What they do", biz_body, p, t),
+        lambda p, t: premium.section("Financials", financials, p, t),
+        lambda p, t: premium.section("Key metrics", metrics, p, t),
+        lambda p, t: premium.section("Worth noting", notes, p, t),
+        lambda p, t: premium.outro(p, t),
+    ]
+    return _assemble(specs), caption
+
+
+def build_tempsens() -> Tuple[List[Image.Image], str]:
+    return _ipo_detail(
+        "IPO DETAILS", ["Tempsens", "Instruments"],
+        "Temperature sensors & cables  •  ₹285–300", "chart_up",
+        "A thermal-engineering company making temperature-sensing solutions, "
+        "electrical heating products and specialised cables — across 15 "
+        "manufacturing units globally.",
+        [   # snapshot
+            ("Price band", "₹285 – ₹300 per share", "rupee"),
+            ("Lot size", "50 shares (min ₹14,250)", "coins"),
+            ("Issue size", "₹650 crore", "bar_chart"),
+            ("Dates", "20–24 Aug  •  lists ~28 Aug", "calendar"),
+        ],
+        [   # financials
+            ("Revenue", "₹274.8 Cr (FY24) to ₹444.9 Cr (FY26)", "chart_up"),
+            ("Net profit (PAT)", "₹40.9 Cr (FY24) to ₹71.1 Cr (FY26)", "coins"),
+            ("Growth", "Revenue +62% and PAT +74% over two years", "target"),
+        ],
+        [   # metrics
+            ("Profitability", "EBITDA margin 24.8%  •  PAT margin 15.6%", "percent"),
+            ("Returns", "ROE 13.5%  •  ROCE 21.6%  •  RoNW 13.6%", "target"),
+            ("Per share", "EPS ₹8.81  •  NAV ₹61.66  •  D/E 0.15", "book"),
+            ("Valuation", "~34x P/E at ₹300 (pre-IPO EPS)", "percent"),
+        ],
+        [   # notes
+            ("Use of funds", "Proceeds fund capex (₹18 Cr), debt repayment (₹55 Cr) "
+             "and general corporate purposes.", "target"),
+            ("Do your own check", "Compare the P/E with listed peers and read the RHP.",
+             "book"),
+            ("Not a recommendation", "Factual info only — not advice. GMP is unofficial.",
+             "warning"),
+        ],
+        (
+            "\U0001F50D Tempsens Instruments IPO — the details\n\n"
+            "What they do: temperature-sensing solutions, electrical heating and "
+            "specialised cables across 15 global plants.\n\n"
+            "\U0001F4CB Price band ₹285–300 • Lot 50 • Issue ₹650 Cr • Open 20–24 Aug\n\n"
+            "\U0001F4C8 Financials (₹ Cr): Revenue 274.8 → 378.5 → 444.9 (FY24-26); "
+            "PAT 40.9 → 62.6 → 71.1. That's ~62% revenue and ~74% profit growth in two "
+            "years.\n\n"
+            "Key metrics: EBITDA margin 24.8%, PAT margin 15.6%, ROCE 21.6%, D/E 0.15, "
+            "EPS ₹8.81 → ~34x P/E at the upper band.\n\n"
+            "This is factual info, not a recommendation. Read the RHP and verify on your "
+            "broker before applying. GMP is unofficial & speculative."
+            + _footer_caption("#ipo #tempsens #ipowatch #stockmarket #investing")
+        ),
+    )
+
+
+def build_augmont() -> Tuple[List[Image.Image], str]:
+    return _ipo_detail(
+        "IPO DETAILS", ["Augmont", "Enterprises"],
+        "Integrated gold & silver platform  •  ₹750–788", "coins",
+        "An integrated gold & silver player — refining, bullion trading, digital "
+        "gold/silver, jewellery manufacturing and gold-backed financial services.",
+        [
+            ("Price band", "₹750 – ₹788 per share", "rupee"),
+            ("Lot size", "19 shares (min ₹14,250)", "coins"),
+            ("Issue size", "₹825 crore (fresh + OFS)", "bar_chart"),
+            ("Dates", "21–25 Aug  •  lists ~31 Aug", "calendar"),
+        ],
+        [
+            ("Revenue", "₹34,921 Cr (FY24) to ₹94,186 Cr (FY26)", "chart_up"),
+            ("Net profit (PAT)", "₹76 Cr (FY24) to ₹348 Cr (FY26)", "coins"),
+            ("Growth", "Revenue ~2.7x and PAT ~4.6x in two years", "target"),
+        ],
+        [
+            ("Profitability", "Wafer-thin PAT margin ~0.4% (typical of bullion)",
+             "percent"),
+            ("Returns", "ROE 51%  •  ROCE 40%  •  RoNW 49.5%", "target"),
+            ("Per share", "EPS ₹41.71  •  NAV ₹111  •  D/E 0.01", "book"),
+            ("Valuation", "~19x P/E at ₹788 (pre-IPO EPS)", "percent"),
+        ],
+        [
+            ("Use of funds", "₹465 Cr of fresh proceeds earmarked for working capital.",
+             "target"),
+            ("Worth noting", "Massive revenue but very thin margins — normal for gold "
+             "bullion trading. Look at absolute profit and returns.", "warning"),
+            ("Not a recommendation", "Factual info only — read the RHP. GMP is unofficial.",
+             "book"),
+        ],
+        (
+            "\U0001F50D Augmont Enterprises IPO — the details\n\n"
+            "What they do: an integrated gold & silver platform — refining, bullion "
+            "trading, digital gold, jewellery and gold-backed finance.\n\n"
+            "\U0001F4CB Price band ₹750–788 • Lot 19 • Issue ₹825 Cr (fresh + OFS) • "
+            "Open 21–25 Aug\n\n"
+            "\U0001F4C8 Financials (₹ Cr): Revenue 34,921 → 94,186; PAT 76 → 348 "
+            "(FY24 to FY26) — roughly 2.7x revenue and 4.6x profit.\n\n"
+            "Key metrics: ROE 51%, ROCE 40%, D/E 0.01, EPS ₹41.71 → ~19x P/E at the "
+            "upper band. Note the very thin ~0.4% PAT margin, normal for bullion "
+            "trading.\n\n"
+            "This is factual info, not a recommendation. Read the RHP and verify before "
+            "applying. GMP is unofficial & speculative."
+            + _footer_caption("#ipo #augmont #gold #ipowatch #stockmarket")
+        ),
+    )
+
+
 # --- Meet Tara, the website AI advisor (product promo) --------------------
 def build_tara() -> Tuple[List[Image.Image], str]:
     specs = [
@@ -413,6 +529,8 @@ def build_tara() -> Tuple[List[Image.Image], str]:
 POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "tara": build_tara,
     "ipo": build_ipo,
+    "tempsens": build_tempsens,
+    "augmont": build_augmont,
     "recap": build_recap,
     "global": build_global,
     "news": build_news,
