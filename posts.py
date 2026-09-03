@@ -479,6 +479,58 @@ def build_augmont() -> Tuple[List[Image.Image], str]:
     )
 
 
+# --- SIP vs no-SIP comparison (illustrative, popular carousel format) -----
+def build_sipcompare() -> Tuple[List[Image.Image], str]:
+    specs = [
+        lambda p, t: premium.cover("SIP vs NO SIP", ["₹5,000 a month,", "20 years later"],
+                                   "Two friends. One habit. A huge gap.", t,
+                                   hero="snowball"),
+        lambda p, t: premium.section("Meet the two friends", [
+            ("Riya — invests", "Puts ₹5,000 into an SIP every single month.", "check"),
+            ("Aman — doesn't", "Spends the same ₹5,000 each month.", "warning"),
+        ], p, t),
+        lambda p, t: premium.section("After 20 years*", [
+            ("Riya's corpus", "~₹50 lakh — from just ₹12 lakh invested", "coins"),
+            ("Aman's corpus", "₹0 — the money was spent", "warning"),
+            ("The fine print", "*Illustrative at 12% p.a. assumed. Returns vary and "
+             "are not guaranteed.", "book"),
+        ], p, t),
+        lambda p, t: premium.section("Why the gap?", [
+            ("Compounding", "Returns earn their own returns — the snowball grows "
+             "fastest in the later years.", "snowball"),
+            ("Consistency", "Investing every month, through ups and downs, beats "
+             "trying to time the market.", "calendar"),
+            ("Time", "The earlier you start, the more the maths works for you.",
+             "target"),
+        ], p, t),
+        lambda p, t: premium.section("Starting early matters", [
+            ("Start at 25", "₹5,000/mo for 20 yrs: ~₹50 lakh*", "chart_up"),
+            ("Start at 35", "Same SIP for only 10 yrs: ~₹11.6 lakh*", "chart_down"),
+        ], p, t),
+        lambda p, t: premium.text_block("Bottom line", "The best time was yesterday",
+                                        "The next best time is today. Even ₹500 a "
+                                        "month, started now and left to compound, "
+                                        "beats waiting for the 'perfect' moment.", p, t),
+        lambda p, t: premium.outro(p, t),
+    ]
+    caption = (
+        "\U0001F4B8 ₹5,000 a month. 20 years. Two very different endings.\n\n"
+        "Riya invests ₹5,000 every month in an SIP. Aman spends the same amount.\n\n"
+        "After 20 years (illustrative, at an assumed 12% p.a.):\n"
+        "\U0001F7E2 Riya: ~₹50 lakh — from just ₹12 lakh actually invested\n"
+        "\U0001F534 Aman: ₹0 — it was spent\n\n"
+        "The magic isn't luck — it's compounding + consistency + time. And starting "
+        "late costs a lot: the same SIP begun 10 years later grows to only ~₹11.6 "
+        "lakh.\n\n"
+        "The best time to start was yesterday. The next best is today. \U0001F449 Tag "
+        "a friend who keeps saying “I'll start next month.”\n\n"
+        "Note: figures are illustrative at an assumed 12% annual return — actual "
+        "returns vary and are not guaranteed."
+        + _footer_caption("#sip #compounding #mutualfunds #investing101 #wealthbuilding")
+    )
+    return _assemble(specs), caption
+
+
 # --- Meet Tara, the website AI advisor (product promo) --------------------
 def build_tara() -> Tuple[List[Image.Image], str]:
     specs = [
@@ -531,6 +583,7 @@ POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "ipo": build_ipo,
     "tempsens": build_tempsens,
     "augmont": build_augmont,
+    "sipvsno": build_sipcompare,
     "recap": build_recap,
     "global": build_global,
     "news": build_news,
