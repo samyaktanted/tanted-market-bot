@@ -532,6 +532,22 @@ def build_sipcompare() -> Tuple[List[Image.Image], str]:
     return _assemble(specs), caption
 
 
+# --- Photo-backed money-wisdom quote (Pexels; gradient fallback) ----------
+def build_photoquote() -> Tuple[List[Image.Image], str]:
+    from festival import QUOTES
+    from datetime import date
+    lines = QUOTES[date.today().timetuple().tm_yday % len(QUOTES)][0]
+    quote = " ".join(lines)
+    caption = (
+        f"\U0001F4AD {quote}\n\n"
+        "A little reminder to keep building good money habits.\n\n"
+        f"Follow {config.BRAND_HANDLE} for a daily dose. {config.BRAND_WEBSITE}\n\n"
+        "#moneywisdom #investing #personalfinance #wealthbuilding #motivation "
+        "#tantedinvestments"
+    )
+    return [festival.build_photoquote()], caption
+
+
 # --- Festival greeting: Janmashtami (single-image poster) -----------------
 def build_janmashtami() -> Tuple[List[Image.Image], str]:
     caption = (
@@ -600,6 +616,7 @@ POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "augmont": build_augmont,
     "sipvsno": build_sipcompare,
     "janmashtami": build_janmashtami,
+    "photoquote": build_photoquote,
     "recap": build_recap,
     "global": build_global,
     "news": build_news,

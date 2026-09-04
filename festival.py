@@ -1,10 +1,13 @@
 """Original festive greeting posters (single 1080x1350 image), drawn with
 Pillow so there are no external asset/licensing dependencies."""
+from datetime import date
+
 from PIL import Image, ImageDraw, ImageFilter
 
 import config
 import premium
 import render
+import stock
 
 W, H = render.W, render.H
 font = render.font
@@ -129,6 +132,65 @@ def build_janmashtami() -> Image.Image:
         d.line([(nx + 8, 1006), (nx + 8, 978)], fill=GOLD, width=3)
 
     # brand footer: logo + name + handle
+    logo = premium._logo_badge(96)
+    if logo is not None:
+        img.paste(logo, (W // 2 - 48, 1120), logo)
+    d = ImageDraw.Draw(img)
+    _centered(d, config.BRAND_HANDLE, 1235, font(34, True), GOLD_SOFT)
+    _centered(d, config.BRAND_WEBSITE, 1278, font(28), CREAM)
+    return img
+
+
+# --- Photo-backed quote (uses Pexels; falls back to gradient) -------------
+QUOTES = [
+    (["Every rupee you invest today", "is a seed for tomorrow."], "sunrise mountains"),
+    (["Wealth is built by habits,", "not by timing."], "calm ocean sunrise"),
+    (["Save first.", "Spend what is left."], "green plant growth"),
+    (["Time in the market beats", "timing the market."], "city skyline dawn"),
+    (["Small, steady steps", "compound into big results."], "forest path morning"),
+]
+
+
+def _cover_fit(path):
+    im = Image.open(path).convert("RGB")
+    scale = max(W / im.width, H / im.height)
+    im = im.resize((int(im.width * scale), int(im.height * scale)))
+    left, top = (im.width - W) // 2, (im.height - H) // 2
+    return im.crop((left, top, left + W, top + H))
+
+
+def _scrim(im):
+    """Darken a photo with a navy gradient so text stays legible."""
+    ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    od = ImageDraw.Draw(ov)
+    nv = _hex(config.COLOR_BG)
+    for y in range(H):
+        a = int(120 + 110 * (y / H))
+        od.line([(0, y), (W, y)], fill=(nv[0], nv[1], nv[2], a))
+    return Image.alpha_composite(im.convert("RGBA"), ov).convert("RGB")
+
+
+def build_photoquote() -> Image.Image:
+    (lines, query) = QUOTES[date.today().timetuple().tm_yday % len(QUOTES)]
+    path = stock.get_photo(query, orientation="portrait")
+    if path:
+        img = _scrim(_cover_fit(path))
+    else:
+        img = _gradient("#241A5C", "#0D0A22")  # graceful fallback
+        img = _glow(img, W // 2, 620, 360, GOLD, alpha=70)
+    d = ImageDraw.Draw(img)
+
+    d.rounded_rectangle([40, 40, W - 40, H - 40], radius=28, outline=GOLD, width=3)
+    chip_text = "MONEY WISDOM"
+    chip_w = d.textlength(chip_text, font=font(34, True)) + 56
+    premium.chip(d, int((W - chip_w) / 2), 150, chip_text)
+
+    y = 560
+    for line in lines:
+        _centered(d, line, y, font(66, True), "#FFFFFF")
+        y += 92
+    _divider(d, y + 30)
+
     logo = premium._logo_badge(96)
     if logo is not None:
         img.paste(logo, (W // 2 - 48, 1120), logo)

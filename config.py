@@ -41,6 +41,11 @@ IG_API_HOST = os.getenv("IG_API_HOST", "graph.instagram.com")
 # HTTPS for the Graph API to fetch them). In CI this is set to a raw GitHub URL.
 PUBLIC_IMAGE_BASE_URL = os.getenv("PUBLIC_IMAGE_BASE_URL", "").rstrip("/")
 
+# ---- Stock imagery (Pexels) ----
+# Free key from https://www.pexels.com/api/ . Optional: without it, posts fall
+# back to the drawn gradient background.
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
+
 # ---- Output ----
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
 

@@ -8,3 +8,6 @@ venv/
 # CI force-adds them (git add -f output/) so they're still served publicly for
 # the Graph API at the run's commit.
 output/
+
+# Cached stock photos (re-downloadable)
+assets/cache/
