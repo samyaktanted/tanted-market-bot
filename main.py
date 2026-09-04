@@ -73,7 +73,7 @@ def publish(post_type: str) -> None:
         print(" ", u)
 
     import instagram
-    media_id = instagram.publish_carousel(image_urls, manifest["caption"])
+    media_id = instagram.publish(image_urls, manifest["caption"])
     print(f"Published! Instagram media id: {media_id}")
 
 

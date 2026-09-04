@@ -87,3 +87,25 @@ def publish_carousel(image_urls: List[str], caption: str) -> str:
         "creation_id": carousel_id,
     })
     return published["id"]
+
+
+def publish_single(image_url: str, caption: str) -> str:
+    """Publish a single feed image (used for one-off posters/greetings)."""
+    if not (config.IG_USER_ID and config.IG_ACCESS_TOKEN):
+        raise RuntimeError("IG_USER_ID and IG_ACCESS_TOKEN must be set to publish.")
+    container = _post(f"{config.IG_USER_ID}/media", {
+        "image_url": image_url,
+        "caption": caption,
+    })
+    _wait_finished(container["id"])
+    published = _post(f"{config.IG_USER_ID}/media_publish", {
+        "creation_id": container["id"],
+    })
+    return published["id"]
+
+
+def publish(image_urls: List[str], caption: str) -> str:
+    """Single image -> single post; 2+ -> carousel."""
+    if len(image_urls) == 1:
+        return publish_single(image_urls[0], caption)
+    return publish_carousel(image_urls, caption)

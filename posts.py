@@ -12,6 +12,7 @@ from PIL import Image
 
 import config
 import content
+import festival
 import library
 import market_data
 import news
@@ -531,6 +532,20 @@ def build_sipcompare() -> Tuple[List[Image.Image], str]:
     return _assemble(specs), caption
 
 
+# --- Festival greeting: Janmashtami (single-image poster) -----------------
+def build_janmashtami() -> Tuple[List[Image.Image], str]:
+    caption = (
+        "\U0001FA94 Happy Janmashtami! \U0001F499\n\n"
+        "On Lord Krishna's birthday, may his flute bring harmony and his wisdom "
+        "bring clarity to every choice you make — in life and in money.\n\n"
+        "Warm wishes from all of us at Tanted Investments. \U0001F64F\n\n"
+        f"{config.BRAND_HANDLE}  •  {config.BRAND_WEBSITE}\n\n"
+        "#happyjanmashtami #janmashtami #krishna #janmashtami2026 #festival "
+        "#tantedinvestments #india"
+    )
+    return [festival.build_janmashtami()], caption
+
+
 # --- Meet Tara, the website AI advisor (product promo) --------------------
 def build_tara() -> Tuple[List[Image.Image], str]:
     specs = [
@@ -584,6 +599,7 @@ POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "tempsens": build_tempsens,
     "augmont": build_augmont,
     "sipvsno": build_sipcompare,
+    "janmashtami": build_janmashtami,
     "recap": build_recap,
     "global": build_global,
     "news": build_news,
