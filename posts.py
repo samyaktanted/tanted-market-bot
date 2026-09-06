@@ -10,9 +10,12 @@ from typing import Callable, Dict, List, Tuple
 
 from PIL import Image
 
+from datetime import date as _date
+
 import config
 import content
 import festival
+import funds
 import library
 import market_data
 import news
@@ -532,6 +535,57 @@ def build_sipcompare() -> Tuple[List[Image.Image], str]:
     return _assemble(specs), caption
 
 
+# --- Fund in Focus (informational; live returns + snapshot holdings) ------
+def build_fundfocus() -> Tuple[List[Image.Image], str]:
+    f = funds.FUNDS[_date.today().timetuple().tm_yday % len(funds.FUNDS)]
+    s = funds.get_fund_stats(f["code"]) or {}
+
+    def r(key):
+        v = s.get(key)
+        return f"{v:+.1f}%" if isinstance(v, (int, float)) else "—"
+
+    nav = f"₹{s['nav']:.2f} ({s['date']})" if s.get("nav") else "see factsheet"
+    category = s.get("category", "Equity fund")
+    ret_icon = "chart_up" if isinstance(s.get("r3"), (int, float)) and s["r3"] >= 0 else "chart_down"
+
+    specs = [
+        lambda p, t: premium.cover("FUND IN FOCUS", f["title_lines"],
+                                   f"{category}  •  the facts", t, hero="bar_chart"),
+        lambda p, t: premium.section("Snapshot", [
+            ("Category", category, "grid"),
+            ("NAV (direct-growth)", nav, "rupee"),
+            ("Fund size (AUM)", f["aum"], "coins"),
+            ("Expense ratio", f["expense"], "percent"),
+        ], p, t),
+        lambda p, t: premium.section("Returns (annualised, direct)", [
+            ("1-year", r("r1"), ret_icon),
+            ("3-year", f"{r('r3')} p.a.", "chart_up"),
+            ("5-year", f"{r('r5')} p.a.", "chart_up"),
+            ("Remember", "Past performance does not predict future returns.", "warning"),
+        ], p, t),
+        lambda p, t: premium.list_slide(f"Top holdings  ({f['as_of']})",
+                                        [(name, pct) for name, pct in f["holdings"]], p, t),
+        lambda p, t: premium.text_block("Read the fine print", "Information, not advice",
+                                        "This is factual information, not a recommendation "
+                                        "to buy. Holdings change monthly — always check the "
+                                        "latest factsheet and your goals before investing.",
+                                        p, t),
+        lambda p, t: premium.outro(p, t),
+    ]
+    hold = " • ".join(f"{n} {p}" for n, p in f["holdings"])
+    caption = (
+        f"\U0001F4CA Fund in focus: {f['short']} ({category})\n\n"
+        f"NAV: {nav}\nAUM: {f['aum']}  |  Expense ratio: {f['expense']}\n\n"
+        f"Annualised returns (direct plan): 1Y {r('r1')} • 3Y {r('r3')} • 5Y {r('r5')}\n\n"
+        f"Top holdings ({f['as_of']}): {hold}\n\n"
+        "ℹ️ This is information, not a recommendation to buy. Past performance "
+        "doesn't predict future returns; holdings change monthly. Do your own research or "
+        "consult a SEBI-registered adviser."
+        + _footer_caption("#mutualfunds #investing #sip #personalfinance #mutualfundsindia")
+    )
+    return _assemble(specs), caption
+
+
 # --- Photo-backed money-wisdom quote (Pexels; gradient fallback) ----------
 def build_photoquote() -> Tuple[List[Image.Image], str]:
     from festival import QUOTES
@@ -617,6 +671,7 @@ POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "sipvsno": build_sipcompare,
     "janmashtami": build_janmashtami,
     "photoquote": build_photoquote,
+    "fundfocus": build_fundfocus,
     "recap": build_recap,
     "global": build_global,
     "news": build_news,
@@ -629,7 +684,8 @@ POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
 }
 
 EXTRA_ROTATION = {
-    0: "global", 1: "quiz", 2: "term", 3: "thisorthat", 4: "news", 5: "term", 6: "quiz",
+    0: "global", 1: "quiz", 2: "fundfocus", 3: "thisorthat", 4: "news",
+    5: "fundfocus", 6: "term",
 }
 
 
