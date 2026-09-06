@@ -13,6 +13,10 @@ on:
         description: "Post type (recap|global|news|quiz|term|thisorthat|auto-extra)"
         required: false
         default: "auto-extra"
+      fund_index:
+        description: "For type=fundfocus: index into FUNDS (0-based). Blank = daily rotation."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -42,6 +46,7 @@ jobs:
       - name: Generate slides + caption
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          FUND_INDEX: ${{ github.event.inputs.fund_index }}
         run: python main.py generate --type "$POST_TYPE"
 
       - name: Commit generated images

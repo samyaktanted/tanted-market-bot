@@ -10,6 +10,7 @@ from typing import Callable, Dict, List, Tuple
 
 from PIL import Image
 
+import os
 from datetime import date as _date
 
 import config
@@ -537,7 +538,11 @@ def build_sipcompare() -> Tuple[List[Image.Image], str]:
 
 # --- Fund in Focus (informational; live returns + snapshot holdings) ------
 def build_fundfocus() -> Tuple[List[Image.Image], str]:
-    f = funds.FUNDS[_date.today().timetuple().tm_yday % len(funds.FUNDS)]
+    # FUND_INDEX env overrides the day-based pick (lets you target a fund).
+    env_idx = os.getenv("FUND_INDEX", "")
+    idx = int(env_idx) if env_idx.strip().lstrip("-").isdigit() else \
+        _date.today().timetuple().tm_yday
+    f = funds.FUNDS[idx % len(funds.FUNDS)]
     s = funds.get_fund_stats(f["code"]) or {}
 
     def r(key):
