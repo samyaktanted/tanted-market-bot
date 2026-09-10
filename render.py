@@ -88,10 +88,55 @@ def _glow(img: Image.Image, center, radius, color, alpha=45) -> None:
               (0, 0))
 
 
+# A finance-themed Pexels photo shared across all slides in one post. Fetched
+# lazily once per process; falls back to the gradient when there's no key/photo.
+_BG_QUERY = os.getenv("SLIDE_BG_QUERY", "finance business city skyline dark")
+_BG_MEMO: dict = {}
+
+
+def _photo_bg() -> Optional[Image.Image]:
+    if not config.PEXELS_API_KEY:
+        return None
+    import stock
+    if _BG_QUERY not in _BG_MEMO:
+        _BG_MEMO[_BG_QUERY] = stock.get_photo(_BG_QUERY, "portrait")
+    path = _BG_MEMO[_BG_QUERY]
+    if not path:
+        return None
+    try:
+        photo = Image.open(path).convert("RGB")
+        scale = max(W / photo.width, H / photo.height)
+        photo = photo.resize((int(photo.width * scale) + 1,
+                              int(photo.height * scale) + 1))
+        left = (photo.width - W) // 2
+        top = (photo.height - H) // 2
+        return photo.crop((left, top, left + W, top + H))
+    except Exception:
+        return None
+
+
+def _scrim(img: Image.Image) -> None:
+    """Strong navy scrim so text and green/red numbers stay readable on a photo."""
+    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    px = layer.load()
+    r, g, b = _BG
+    for y in range(H):
+        a = int(212 - 55 * (y / (H - 1)))  # ~83% top -> ~62% bottom
+        for x in range(W):
+            px[x, y] = (r, g, b, a)
+    img.paste(Image.alpha_composite(img.convert("RGBA"), layer).convert("RGB"),
+              (0, 0))
+
+
 def _new_canvas() -> Tuple[Image.Image, ImageDraw.ImageDraw]:
-    img = _gradient_bg()
-    # subtle gold glow, top-right, for depth
-    _glow(img, (W - 60, 120), 300, _hex(config.COLOR_ACCENT), 40)
+    photo = _photo_bg()
+    if photo is not None:
+        img = photo
+        _scrim(img)
+        _glow(img, (W - 60, 120), 280, _hex(config.COLOR_ACCENT), 30)
+    else:
+        img = _gradient_bg()
+        _glow(img, (W - 60, 120), 300, _hex(config.COLOR_ACCENT), 40)
     draw = ImageDraw.Draw(img)
     # gradient accent bar (gold -> lighter gold) across the top
     acc = _hex(config.COLOR_ACCENT)
