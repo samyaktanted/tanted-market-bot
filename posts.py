@@ -748,13 +748,19 @@ EXTRA_ROTATION = {
     5: "fundfocus", 6: "term",
 }
 
+# Main daily slot (replaces the market recap): cycles IPO news, mutual-fund
+# info, and market news. Rotates by day-of-year so all three appear in turn.
+DAILY_ROTATION = ["iponews", "mutualfunds", "news"]
+
 
 def resolve_type(post_type: str) -> str:
     if post_type == "auto-extra":
         return EXTRA_ROTATION[date.today().weekday()]
+    if post_type == "auto-daily":
+        return DAILY_ROTATION[date.today().timetuple().tm_yday % len(DAILY_ROTATION)]
     if post_type not in POST_TYPES:
         raise ValueError(f"Unknown post type: {post_type}. "
-                         f"Choices: {', '.join(POST_TYPES)} or auto-extra")
+                         f"Choices: {', '.join(POST_TYPES)} or auto-extra / auto-daily")
     return post_type
 
 

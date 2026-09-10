@@ -1,10 +1,11 @@
 name: Daily market post
 
+# Main daily slot. Rotates IPO news -> mutual-fund info -> market news
+# (posts.py DAILY_ROTATION, cycled by day-of-year). Replaces the old recap.
+
 on:
   schedule:
-    # 11:00 UTC = 4:30 PM IST, ~1 hour after the Indian market close (3:30 PM IST).
-    # Runs Mon–Fri. Note: this does not skip Indian market holidays — on those
-    # days it will still post the last available close. Add a holiday check if needed.
+    # 11:00 UTC = 4:30 PM IST, ~1 hour after the Indian market close. Runs Mon–Fri.
     - cron: "0 11 * * 1-5"
   workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
 
@@ -38,7 +39,7 @@ jobs:
       - name: Generate slides + caption
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-        run: python main.py generate --type recap
+        run: python main.py generate --type auto-daily
 
       - name: Commit generated images
         id: commit
@@ -46,7 +47,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f output/
-          git commit -m "Daily recap $(date -u +%Y-%m-%d)" || echo "nothing to commit"
+          git commit -m "Daily post $(date -u +%Y-%m-%d)" || echo "nothing to commit"
           git pull --rebase origin main || true
           git push
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -61,4 +62,4 @@ jobs:
           # fetch these unauthenticated. If your repo is private, host images on
           # your own site and set PUBLIC_IMAGE_BASE_URL to that instead.
           PUBLIC_IMAGE_BASE_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.commit.outputs.sha }}/output
-        run: python main.py publish --type recap
+        run: python main.py publish --type auto-daily
