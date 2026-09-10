@@ -12,7 +12,7 @@ import argparse
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import requests
 from dotenv import load_dotenv
@@ -30,6 +30,17 @@ HANDLE = os.getenv("IG_AI_HANDLE", "@ai_facts_knowledge")
 TAGS = ("#AI #ArtificialIntelligence #MachineLearning #DeepLearning #LLM "
         "#TechNews #DataScience #Innovation #AInews #FutureTech")
 
+# Daily rotation across themes so the feed stays varied.
+# Algolia does free-text (not boolean) search, so queries are simple keywords.
+TOPICS = [
+    {"name": "LLMs & AI", "tag": "AI", "hn": "LLM",
+     "arxiv": ("cs.CL", "cs.LG"), "min_points": 100},
+    {"name": "AI Entrepreneurship", "tag": "AIStartups", "hn": "AI startup",
+     "arxiv": ("cs.AI",), "min_points": 50},
+    {"name": "Robotics", "tag": "Robotics", "hn": "robotics",
+     "arxiv": ("cs.RO",), "min_points": 40},
+]
+
 
 def _date_slug() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -39,11 +50,20 @@ def _run_dir() -> str:
     return os.path.join(config.OUTPUT_DIR, "ai", _date_slug())
 
 
-def pick_item() -> Item:
-    hn = fetch_hn(limit=1, min_points=150)
-    if hn:
-        return hn[0]
-    return fetch_arxiv(categories=("cs.LG", "cs.CL"), max_results=1)[0]
+def pick_item():
+    """Return (item, tag) for today's rotating topic, with robust fallbacks."""
+    topic = TOPICS[date.today().toordinal() % len(TOPICS)]
+    # 1) trending HN story for the topic (relax the points bar once if needed)
+    for mp in (topic["min_points"], 20):
+        hn = fetch_hn(query=topic["hn"], limit=1, min_points=mp)
+        if hn:
+            return hn[0], topic["tag"]
+    # 2) latest relevant arXiv paper
+    arx = fetch_arxiv(categories=topic["arxiv"], max_results=1)
+    if arx:
+        return arx[0], topic["tag"]
+    # 3) absolute fallback so a post always ships
+    return fetch_hn(query="AI", limit=1, min_points=50)[0], "AI"
 
 
 def caption(item: Item) -> str:
@@ -59,10 +79,10 @@ def caption(item: Item) -> str:
 
 
 def generate() -> str:
-    item = pick_item()
+    item, tag = pick_item()
     out_dir = _run_dir()
     os.makedirs(out_dir, exist_ok=True)
-    card = render_card(item, os.path.join(out_dir, "card.png"))
+    card = render_card(item, os.path.join(out_dir, "card.png"), tag=tag)
     cap = caption(item)
     manifest = {
         "date": _date_slug(),
