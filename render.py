@@ -3,7 +3,7 @@ import os
 import textwrap
 from typing import List, Optional, Tuple
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 import config
 from market_data import Quote, Snapshot
@@ -53,11 +53,51 @@ def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
+def _hex(h: str) -> Tuple[int, int, int]:
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _lerp(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+# Brand-navy gradient endpoints derived from COLOR_BG (lighter top, deeper bottom).
+_BG = _hex(config.COLOR_BG)
+_BG_TOP = tuple(min(255, int(c * 1.75)) for c in _BG)
+_BG_BOT = tuple(int(c * 0.55) for c in _BG)
+
+
+def _gradient_bg() -> Image.Image:
+    """Vertical brand-navy gradient (built as a 1px column, then stretched)."""
+    col = Image.new("RGB", (1, H))
+    for y in range(H):
+        col.putpixel((0, y), _lerp(_BG_TOP, _BG_BOT, y / (H - 1)))
+    return col.resize((W, H))
+
+
+def _glow(img: Image.Image, center, radius, color, alpha=45) -> None:
+    """Soft radial accent for depth."""
+    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    dd = ImageDraw.Draw(layer)
+    cx, cy = center
+    dd.ellipse([cx - radius, cy - radius, cx + radius, cy + radius],
+               fill=tuple(color) + (alpha,))
+    layer = layer.filter(ImageFilter.GaussianBlur(radius // 2))
+    img.paste(Image.alpha_composite(img.convert("RGBA"), layer).convert("RGB"),
+              (0, 0))
+
+
 def _new_canvas() -> Tuple[Image.Image, ImageDraw.ImageDraw]:
-    img = Image.new("RGB", (W, H), config.COLOR_BG)
+    img = _gradient_bg()
+    # subtle gold glow, top-right, for depth
+    _glow(img, (W - 60, 120), 300, _hex(config.COLOR_ACCENT), 40)
     draw = ImageDraw.Draw(img)
-    # Accent bar top + footer text on every slide.
-    draw.rectangle([0, 0, W, 14], fill=config.COLOR_ACCENT)
+    # gradient accent bar (gold -> lighter gold) across the top
+    acc = _hex(config.COLOR_ACCENT)
+    bright = _lerp(acc, (255, 255, 255), 0.45)
+    for x in range(W):
+        draw.line([(x, 0), (x, 14)], fill=_lerp(acc, bright, x / W))
     draw.text((MARGIN, H - 70), config.BRAND_HANDLE, font=font(30),
               fill=config.COLOR_MUTED)
     return img, draw
