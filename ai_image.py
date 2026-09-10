@@ -4,8 +4,12 @@
 Self-contained theme (Picsart-style gradient) — does NOT read Tanted's brand
 colors or handle from config, so restyling this never affects the Tanted bot.
 """
+from __future__ import annotations
+
+import io
 import os
 
+import requests
 from PIL import Image, ImageDraw, ImageFilter
 
 from render import font, _wrap  # font loader only — no Tanted branding
@@ -16,6 +20,15 @@ MARGIN = 96
 
 # --- AI-bot theme (independent of Tanted config) ---
 HANDLE = os.getenv("IG_AI_HANDLE", "@ai_facts_knowledge")
+# Separate key from Tanted's PEXELS_API_KEY so the two bots never interfere.
+PEXELS_KEY = os.getenv("PEXELS_API_KEY_AI") or os.getenv("PEXELS_API_KEY", "")
+
+# Pexels search query per topic tag (falls back to a generic AI query).
+BG_QUERY = {
+    "AI": "artificial intelligence technology abstract",
+    "AIStartups": "startup technology office",
+    "Robotics": "robot robotics",
+}
 GRAD_TOP = (15, 12, 41)      # #0F0C29 deep indigo
 GRAD_MID = (48, 43, 99)      # #302B63
 GRAD_BOT = (36, 36, 62)      # #24243E
@@ -56,11 +69,58 @@ def _glow(img: Image.Image, center, radius, color, alpha=90):
               (0, 0))
 
 
+def _fetch_bg(query: str) -> Image.Image | None:
+    """Fetch a portrait Pexels photo, cropped to fill 1080x1350. None on failure."""
+    if not PEXELS_KEY:
+        return None
+    try:
+        r = requests.get("https://api.pexels.com/v1/search",
+                         headers={"Authorization": PEXELS_KEY},
+                         params={"query": query, "per_page": 15,
+                                 "orientation": "portrait"}, timeout=20)
+        r.raise_for_status()
+        photos = r.json().get("photos", [])
+        if not photos:
+            return None
+        src = photos[0]["src"].get("portrait") or photos[0]["src"]["large2x"]
+        raw = requests.get(src, timeout=25)
+        raw.raise_for_status()
+        photo = Image.open(io.BytesIO(raw.content)).convert("RGB")
+        # cover-crop to WxH
+        scale = max(W / photo.width, H / photo.height)
+        photo = photo.resize((int(photo.width * scale) + 1,
+                              int(photo.height * scale) + 1))
+        left = (photo.width - W) // 2
+        top = (photo.height - H) // 2
+        return photo.crop((left, top, left + W, top + H))
+    except Exception:
+        return None
+
+
+def _scrim(img: Image.Image) -> None:
+    """Darken the photo with a top-heavy gradient so text stays readable."""
+    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    px = layer.load()
+    for y in range(H):
+        t = y / (H - 1)
+        # ~78% dark at the top (behind headline), ~55% at the bottom
+        a = int(200 - 60 * t)
+        for x in range(W):
+            px[x, y] = (10, 10, 26, a)
+    img.paste(Image.alpha_composite(img.convert("RGBA"), layer).convert("RGB"),
+              (0, 0))
+
+
 def render_card(item: Item, out_path: str, tag: str = "AI") -> str:
-    img = _gradient_bg()
-    # ambient accent glows
-    _glow(img, (W - 120, 160), 320, ACCENT_B, 70)
-    _glow(img, (140, H - 220), 360, ACCENT_A, 60)
+    bg = _fetch_bg(BG_QUERY.get(tag, BG_QUERY["AI"]))
+    if bg is not None:
+        img = bg
+        _scrim(img)
+        _glow(img, (W - 120, 160), 300, ACCENT_B, 55)
+    else:
+        img = _gradient_bg()
+        _glow(img, (W - 120, 160), 320, ACCENT_B, 70)
+        _glow(img, (140, H - 220), 360, ACCENT_A, 60)
 
     d = ImageDraw.Draw(img)
 
