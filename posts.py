@@ -368,6 +368,60 @@ def build_ipo() -> Tuple[List[Image.Image], str]:
     return _assemble(specs), caption
 
 
+def build_iponews() -> Tuple[List[Image.Image], str]:
+    """IPO/NSE news post built from REAL live headlines (never fabricated),
+    rendered on the Pexels photo template (render.py slide helpers)."""
+    import render
+    # IPO-themed Pexels background for this post's slides.
+    render._BG_QUERY = "stock exchange trading floor finance"
+    render._BG_MEMO.clear()
+
+    today = _date.today().strftime("%d %b %Y")
+    KW = ("ipo", "nse", "listing", "listed", "debut", "subscri", "gmp",
+          "grey market", "share sale", "public offer")
+    heads = [h for h in news.get_headlines(limit=40)
+             if any(k in h.title.lower() for k in KW)][:6]
+
+    slides = [
+        render.title_slide("IPO Watch", ["NSE IPO &", "IPO buzz"],
+                           f"{today}  ·  the headlines + how to read an IPO"),
+    ]
+    if heads:
+        slides.append(render.bullets_slide(
+            "In the news", [h.title for h in heads[:3]],
+            tags=[h.source for h in heads[:3]]))
+        if len(heads) > 3:
+            slides.append(render.bullets_slide(
+                "More IPO news", [h.title for h in heads[3:6]],
+                tags=[h.source for h in heads[3:6]]))
+    # Evergreen, factual checklist — not advice to apply.
+    slides.append(render.bullets_slide("Before you apply, check", [
+        "Read the RHP — revenue, profit, debt. Is it actually profitable?",
+        "Compare its P/E to already-listed peers — cheap or pricey?",
+        "Why are they raising money? Growth beats only debt-repay / promoter exit.",
+        "Ignore the GMP hype — grey-market premium is unofficial & speculative.",
+    ], numbered=True))
+    slides.append(render.outro_slide())
+
+    news_lines = "\n".join(f"• {h.title} — {h.source}" for h in heads) or \
+        "• Check the NSE/BSE IPO pages for the latest issues."
+    caption = (
+        f"\U0001F514 IPO watch — NSE IPO & the latest issues ({today})\n\n"
+        + news_lines
+        + "\n\nBefore you apply, look past the hype:\n"
+        "\U0001F4D8 Read the RHP — revenue, profit, debt\n"
+        "\U0001F4CA Check valuation vs listed peers\n"
+        "\U0001F3AF See why they're raising money\n"
+        "⚠️ GMP (grey-market premium) is unofficial & speculative — not a signal\n\n"
+        "Headlines are from public news sources (see the outlet named). This is "
+        "not a recommendation to apply. Always verify lot size, IPO type "
+        "(mainboard/SME) and full details on your broker or the NSE/BSE site, and "
+        "read the RHP."
+        + _footer_caption("#ipo #nseipo #ipowatch #stockmarket #sharemarket #investing")
+    )
+    return slides, caption
+
+
 # --- Per-company IPO deep-dives (static snapshots; real figures) ----------
 # Figures captured 24 Aug 2026 from public IPO pages (Groww). Verify the RHP
 # before reusing — IPO data is time-sensitive. Not in EXTRA_ROTATION.
@@ -671,6 +725,7 @@ def build_tara() -> Tuple[List[Image.Image], str]:
 POST_TYPES: Dict[str, Callable[[], Tuple[List[Image.Image], str]]] = {
     "tara": build_tara,
     "ipo": build_ipo,
+    "iponews": build_iponews,
     "tempsens": build_tempsens,
     "augmont": build_augmont,
     "sipvsno": build_sipcompare,
