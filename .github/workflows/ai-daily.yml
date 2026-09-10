@@ -1,0 +1,57 @@
+name: Daily AI post
+
+# Posts one AI card/day to @ai_facts_knowledge. Fetches a trending AI story
+# (Hacker News, fallback arXiv), renders a card, commits it so GitHub raw can
+# serve it, then publishes. Uses the IG_AI_* secrets (separate from Tanted).
+
+on:
+  schedule:
+    - cron: "0 8 * * *"   # 13:30 IST daily
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # commit the generated image back to the repo
+
+concurrency:
+  group: ai-daily
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
+
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt tweepy
+
+      - name: Generate AI card + caption
+        run: python ai_bot.py generate
+
+      - name: Commit generated image
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f output/ai/
+          git commit -m "Daily AI post $(date -u +%Y-%m-%d)" || echo "nothing to commit"
+          git pull --rebase origin main || true
+          git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to Instagram
+        env:
+          IG_AI_USER_ID: ${{ secrets.IG_AI_USER_ID }}
+          IG_AI_ACCESS_TOKEN: ${{ secrets.IG_AI_ACCESS_TOKEN }}
+          GRAPH_API_VERSION: ${{ secrets.GRAPH_API_VERSION }}
+          # raw.githubusercontent.com serves committed files immediately at an
+          # immutable SHA. Repo must be PUBLIC for Meta to fetch these.
+          PUBLIC_IMAGE_BASE_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.commit.outputs.sha }}/output
+        run: python ai_bot.py publish

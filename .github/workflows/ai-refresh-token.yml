@@ -1,0 +1,36 @@
+name: Refresh AI Instagram token
+
+# Renews the @ai_facts_knowledge long-lived token before its ~60-day expiry and
+# writes it back into the IG_AI_ACCESS_TOKEN secret.
+#
+# Requires repo secret GH_PAT: a fine-grained PAT with "Secrets: Read and write"
+# on this repo (the default Actions token cannot update secrets).
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"   # every Monday 03:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests
+
+      - name: Refresh the AI token
+        env:
+          IG_AI_ACCESS_TOKEN: ${{ secrets.IG_AI_ACCESS_TOKEN }}
+        run: python refresh_ai_token.py
+
+      - name: Store the new token as a secret
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          gh secret set IG_AI_ACCESS_TOKEN --repo "${{ github.repository }}" < new_ai_token.txt
+          echo "IG_AI_ACCESS_TOKEN secret updated."
