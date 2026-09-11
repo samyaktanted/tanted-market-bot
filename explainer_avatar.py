@@ -87,9 +87,11 @@ def _intro_bg(path: str, caption: str):
 
 def _segments():
     return [
-        dict(kind="avatar", title=True,
-             narration="Hi! Let's break down S I F, the Specialised Investment "
-                       "Fund, S E B I's newest way to invest."),
+        dict(kind="slide",
+             slide=render.title_slide("SEBI'S NEWEST FUND", ["What is", "a SIF?"],
+                 "Specialised Investment Fund, explained"),
+             narration="Let's break down S I F, the Specialised Investment Fund, "
+                       "S E B I's newest way to invest."),
         dict(kind="slide",
              slide=render.text_slide("WHAT IS IT", "A new SEBI category",
                  "A Specialised Investment Fund, or SIF, is a brand-new category "
@@ -187,50 +189,24 @@ def build() -> str:
     print("voice:", voice)
     segs = _segments()
 
-    # TTS every segment
-    for i, s in enumerate(segs, 1):
-        s["wav"] = os.path.join(OUT, f"a_seg_{i}.wav")
-        s["dur"] = _tts(s["narration"], s["wav"], voice)
-
-    # 1) INTRO: talking head, framed into branded canvas
-    print("rendering talking-head intro (SadTalker, CPU — a few minutes)...")
-    talk = _run_sadtalker(segs[0]["wav"])
-    bg = os.path.join(OUT, "intro_bg.png"); _intro_bg(bg, segs[0]["narration"])
-    intro = os.path.join(OUT, "intro.mp4")
-    subprocess.run(["ffmpeg", "-y", "-loop", "1", "-i", bg, "-i", talk,
-        "-filter_complex",
-        "[1:v]scale=680:680,setsar=1[fg];[0:v]scale=1080:1350,setsar=1[bg];"
-        "[bg][fg]overlay=(W-w)/2:340:shortest=1,fps=30,format=yuv420p[v]",
-        "-map", "[v]", "-map", "1:a",
-        "-c:v", "libx264", "-crf", "20", "-c:a", "aac", "-shortest", intro],
-        check=True, capture_output=True)
-
-    # 2) REST: slideshow (segments 2..N) with concatenated voice
+    # Slideshow + voiceover only (no talking head, no burned captions).
     silence = np.zeros(int(SR * GAP), dtype=np.int16)
     parts, listlines, imgs = [], [], []
-    for i, s in enumerate(segs[1:], 2):
-        _burn_caption(s["slide"], s["narration"])
+    for i, s in enumerate(segs, 1):
+        wav = os.path.join(OUT, f"a_seg_{i}.wav")
+        dur = _tts(s["narration"], wav, voice)
         p = os.path.join(OUT, f"a_slide_{i}.png"); s["slide"].save(p, "PNG")
         imgs.append(p)
-        listlines.append(f"file '{os.path.abspath(p)}'\nduration {s['dur'] + GAP:.3f}")
-        parts.append(np.concatenate([_read(s["wav"]), silence]))
-    rest_voice = os.path.join(OUT, "rest_voice.wav"); _write(rest_voice, np.concatenate(parts))
-    listfile = os.path.join(OUT, "rest_list.txt")
+        listlines.append(f"file '{os.path.abspath(p)}'\nduration {dur + GAP:.3f}")
+        parts.append(np.concatenate([_read(wav), silence]))
+    voice_wav = os.path.join(OUT, "sif_voice.wav"); _write(voice_wav, np.concatenate(parts))
+    listfile = os.path.join(OUT, "sif_list.txt")
     with open(listfile, "w") as f:
         f.write("\n".join(listlines) + f"\nfile '{os.path.abspath(imgs[-1])}'\n")
-    rest = os.path.join(OUT, "rest.mp4")
-    subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listfile,
-        "-i", rest_voice, "-vf", "scale=1080:1350,fps=30,format=yuv420p",
-        "-c:v", "libx264", "-crf", "20", "-c:a", "aac", "-shortest",
-        "-movflags", "+faststart", rest], check=True, capture_output=True)
-
-    # 3) concat intro + rest (normalize audio rate; transcript is burned into frames)
     out = os.path.join(OUT, "sif_explainer.mp4")
-    subprocess.run(["ffmpeg", "-y", "-i", intro, "-i", rest, "-filter_complex",
-        "[0:a]aresample=44100[a0];[1:a]aresample=44100[a1];"
-        "[0:v][a0][1:v][a1]concat=n=2:v=1:a=1[v][a]",
-        "-map", "[v]", "-map", "[a]",
-        "-c:v", "libx264", "-crf", "20", "-c:a", "aac", "-r", "30",
+    subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listfile,
+        "-i", voice_wav, "-vf", "scale=1080:1350,fps=30,format=yuv420p",
+        "-c:v", "libx264", "-crf", "20", "-c:a", "aac", "-shortest",
         "-movflags", "+faststart", out], check=True, capture_output=True)
 
     caption = (
