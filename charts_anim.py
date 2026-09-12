@@ -144,8 +144,14 @@ SEGMENTS = [
 ]
 
 
-def build():
-    render._BG_QUERY = "finance growth chart money"
+def _money(v):
+    return f"Rs {v/1e7:.2f}Cr" if v >= 1e7 else f"Rs {v/1e5:.1f}L"
+
+
+def _render(segments, out_name, caption, bg_query="finance growth chart money"):
+    """Generic animator: segments = [(draw_fn(img,p,t), narration), ...].
+    A disclaimer outro is appended automatically. Returns (mp4, caption_file)."""
+    render._BG_QUERY = bg_query
     render._BG_MEMO.clear()
     os.makedirs(OUT, exist_ok=True)
     frames_dir = os.path.join(OUT, "anim_frames")
@@ -153,51 +159,133 @@ def build():
     os.makedirs(frames_dir)
     voice = _voice(); print("voice:", voice)
 
-    base = render._new_canvas()[0]          # one shared background
-    outro = render.outro_slide()            # static closing slide
+    base = render._new_canvas()[0]
+    outro = render.outro_slide()
     silence = np.zeros(int(SR * GAP), dtype=np.int16)
 
     parts, fi = [], 0
-    seg_list = list(SEGMENTS) + [(None, "Returns are not guaranteed and vary with "
-                                       "the market. This is education, not "
-                                       "investment advice.")]
+    seg_list = list(segments) + [(None, "Returns are not guaranteed and vary with "
+                                        "the market. This is education, not "
+                                        "investment advice.")]
     for draw_fn, narration in seg_list:
         wav = os.path.join(OUT, f"an_{fi}.wav")
         dur = _tts(narration, wav, voice)
         parts.append(np.concatenate([_read(wav), silence]))
-        nframes = int(round((dur + GAP) * FPS))
-        for k in range(nframes):
+        for k in range(int(round((dur + GAP) * FPS))):
             t = k / FPS
-            if draw_fn is None:
-                img = outro.copy()
-            else:
-                img = base.copy()
+            img = outro.copy() if draw_fn is None else base.copy()
+            if draw_fn is not None:
                 draw_fn(img, min(1.0, t / ANIM), t)
             img.save(os.path.join(frames_dir, f"f_{fi:06d}.png"), "PNG")
             fi += 1
     print("frames:", fi)
 
-    voice_wav = os.path.join(OUT, "anim_voice.wav"); _write(voice_wav, np.concatenate(parts))
-    out = os.path.join(OUT, "compounding_anim.mp4")
+    voice_wav = os.path.join(OUT, f"{out_name}_voice.wav"); _write(voice_wav, np.concatenate(parts))
+    out = os.path.join(OUT, f"{out_name}.mp4")
     subprocess.run(["ffmpeg", "-y", "-framerate", str(FPS),
         "-i", os.path.join(frames_dir, "f_%06d.png"), "-i", voice_wav,
         "-vf", "format=yuv420p", "-c:v", "libx264", "-crf", "20",
         "-c:a", "aac", "-shortest", "-movflags", "+faststart", out],
         check=True, capture_output=True)
-    caption = (
-        "The power of compounding — animated.\n\n"
-        "Rs 5,000/month at an assumed ~12% p.a. (illustrative only):\n"
-        "• 5 yrs: ~" + _lakh(VALUES[0]) + "  • 10 yrs: ~" + _lakh(VALUES[1]) +
-        "  • 15 yrs: ~" + _lakh(VALUES[2]) + "  • 20 yrs: ~" + _lakh(VALUES[3]) +
-        "\n\nStart early, stay consistent, let time work.\n\n"
-        "Returns are not guaranteed and vary with the market. Educational only, "
-        "not investment advice.\n\n"
-        "#compounding #sip #mutualfunds #investing #personalfinance #stockmarket"
-    )
-    open(os.path.join(OUT, "anim_caption.txt"), "w").write(caption)
+    cap_file = os.path.join(OUT, f"{out_name}_caption.txt")
+    open(cap_file, "w").write(caption)
     print("DONE:", out)
-    return out
+    return out, cap_file
 
+
+def build():  # compounding topic
+    cap = ("The power of compounding — animated.\n\n"
+           "Rs 5,000/month at an assumed ~12% p.a. (illustrative only):\n"
+           "• 5 yrs: ~" + _lakh(VALUES[0]) + "  • 10 yrs: ~" + _lakh(VALUES[1]) +
+           "  • 15 yrs: ~" + _lakh(VALUES[2]) + "  • 20 yrs: ~" + _lakh(VALUES[3]) +
+           "\n\nStart early, stay consistent, let time work.\n\n"
+           "Returns are not guaranteed and vary with the market. Educational only, "
+           "not investment advice.\n\n"
+           "#compounding #sip #mutualfunds #investing #personalfinance #stockmarket")
+    return _render(SEGMENTS, "compounding_anim", cap)
+
+
+# ---------------- Topic: The cost of waiting (start at 25 vs 35) ----------------
+from charts_explainer import _fv
+A_VAL, B_VAL = _fv(35), _fv(25)          # invest Rs5k/mo till 60
+A_INV, B_INV = 5000*12*35, 5000*12*25
+GAP_VAL = A_VAL - B_VAL
+
+
+def se_title(img, p, t):
+    d = ImageDraw.Draw(img, "RGBA"); e = _ease(t); xo = int((1-e)*-320)
+    d.text((M+xo, 150), "THE COST OF", font=F(50, True), fill=GOLD)
+    d.text((M+xo, 225), "Waiting", font=F(110, True), fill=WHITE)
+    d.text((M+xo, 380), "start at 25 vs 35 — same Rs 5,000/month", font=F(38), fill=MUTED)
+    bob = math.sin(max(0, t-ANIM)*5)*14 if t > ANIM else 0
+    _mascot(d, W//2, int(820+bob), int(240*e))
+
+
+def se_chart(img, p, t):
+    d = ImageDraw.Draw(img, "RGBA")
+    d.rectangle([60, 360, W-60, 1200], fill=(8, 15, 30, 150))
+    d.text((M, 150), "VALUE AT AGE 60", font=F(40, True), fill=GOLD)
+    d.text((M, 220), "Same SIP, at ~12%*", font=F(58, True), fill=WHITE)
+    base_y, top_y = 1120, 470
+    vmax = A_VAL * 1.12
+    for x, lab, val, inv in [(330, "Start at 25", A_VAL, A_INV),
+                             (740, "Start at 35", B_VAL, B_INV)]:
+        e = _ease(t)
+        hv = (base_y-top_y)*(val/vmax)*e
+        hi = (base_y-top_y)*(inv/vmax)*e
+        d.rectangle([x-110, base_y-hv, x+110, base_y], fill=GOLD)
+        d.rectangle([x-110, base_y-hi, x+110, base_y], fill=(90, 110, 140))
+        d.text((x, base_y-hv-46), _money(val*e), font=F(38, True), fill=WHITE, anchor="mm")
+        d.text((x, base_y+34), lab, font=F(34, True), fill=MUTED, anchor="mm")
+    d.line([100, base_y, W-100, base_y], fill=MUTED, width=3)
+    d.rectangle([M, 1160, M+34, 1186], fill=(90, 110, 140)); d.text((M+46, 1160), "Invested", font=F(28), fill=MUTED)
+    d.rectangle([M+320, 1160, M+354, 1186], fill=GOLD); d.text((M+366, 1160), "Value at 60", font=F(28), fill=MUTED)
+
+
+def se_gap(img, p, t):
+    d = ImageDraw.Draw(img, "RGBA"); e = _ease(t)
+    d.text((M, 220), "WAITING 10 YEARS COSTS", font=F(44, True), fill=GOLD)
+    d.text((W//2, 620), _money(GAP_VAL*e), font=F(150, True), fill=CYAN, anchor="mm")
+    d.text((W//2, 780), "same monthly amount — only time changed", font=F(40), fill=WHITE, anchor="mm")
+    icons.draw(d, "warning", W//2, 1000, 90, GOLD)
+
+
+def se_take(img, p, t):
+    d = ImageDraw.Draw(img, "RGBA"); e = _ease(t); xo = int((1-e)*-320)
+    d.text((M+xo, 220), "THE LESSON", font=F(44, True), fill=GOLD)
+    d.text((M+xo, 300), "Start today.", font=F(88, True), fill=WHITE)
+    bob = math.sin(max(0, t-ANIM)*5)*14 if t > ANIM else 0
+    _mascot(d, W//2, int(820+bob), int(240*e))
+    d.text((M, 1080), "The best time was yesterday. The next best is now.", font=F(38), fill=CYAN)
+
+
+SEG_STARTEARLY = [
+    (se_title, "Meet two investors. Both put in five thousand rupees a month. "
+               "One starts at twenty-five, the other at thirty-five."),
+    (se_chart, "By age sixty, at about twelve percent, the early starter has "
+               "around three crore. The one who waited just ten years? "
+               "About one crore."),
+    (se_gap,   "That ten-year delay costs over two crore rupees. Same monthly "
+               "amount — only the starting time changed."),
+    (se_take,  "So the best time to start was yesterday. The next best time is today."),
+]
+
+
+def build_startearly():
+    cap = ("The cost of waiting — animated.\n\n"
+           "Rs 5,000/month till age 60, assumed ~12% p.a. (illustrative only):\n"
+           "• Start at 25 (invest " + _money(A_INV) + "): ~" + _money(A_VAL) + "\n"
+           "• Start at 35 (invest " + _money(B_INV) + "): ~" + _money(B_VAL) + "\n"
+           "• A 10-year delay costs ~" + _money(GAP_VAL) + "\n\n"
+           "Start early — time matters more than amount.\n\n"
+           "Returns are not guaranteed and vary with the market. Educational only, "
+           "not investment advice.\n\n"
+           "#compounding #sip #investing #personalfinance #mutualfunds #stockmarket")
+    return _render(SEG_STARTEARLY, "startearly_anim", cap, "clock time money finance")
+
+
+TOPICS = {"compounding": build, "startearly": build_startearly}
 
 if __name__ == "__main__":
-    build()
+    import sys
+    TOPICS.get(sys.argv[1] if len(sys.argv) > 1 else "compounding", build)()
